@@ -14,3 +14,7 @@
     *   Extensive customization parameters for overlay color, border/bracket appearance (color, width, length), cutout size, and corner rounding.
     *   Supports displaying a custom `placeholder` widget during the camera initialization phase.
 *   **Setup:** Requires adding script tags for the ZXing-JS library and the package's `barcode_scanner.js` interop file to the project's `web/index.html`.
+
+## 0.0.2-beta
+
+*   Introduced a usage example
