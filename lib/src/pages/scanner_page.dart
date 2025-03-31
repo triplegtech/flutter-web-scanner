@@ -7,7 +7,7 @@ import 'package:omni_qrcode_barcode_web_reader/src/services/camera_service.dart'
 import 'package:omni_qrcode_barcode_web_reader/src/widgets/error_widget.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/widgets/scanner_widget.dart';
 
-class ScannerPage extends StatefulWidget {
+class OmniWebScanner extends StatefulWidget {
   final ValueChanged<BarcodeResult> onDetect;
   final ValueChanged<String>? onError;
 
@@ -18,7 +18,7 @@ class ScannerPage extends StatefulWidget {
 
   final ScanMode overlay;
 
-  const ScannerPage({
+  const OmniWebScanner({
     super.key,
     required this.onDetect,
     required this.onError,
@@ -30,10 +30,10 @@ class ScannerPage extends StatefulWidget {
   });
 
   @override
-  State<ScannerPage> createState() => _ScannerPageState();
+  State<OmniWebScanner> createState() => _OmniWebScannerState();
 }
 
-class _ScannerPageState extends State<ScannerPage> {
+class _OmniWebScannerState extends State<OmniWebScanner> {
   String _errorMessage = '';
   CameraModel? _selectedCamera;
   bool _isLoadingCameras = kIsWeb;
