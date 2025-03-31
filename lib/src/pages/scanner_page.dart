@@ -116,9 +116,8 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
               ? _errorMessage
               : 'Permissão da câmera é necessária',
         );
-      } else if (_selectedCamera == null && !_hasCameraPermission) {
-        return const CameraErrorWidget(error: 'Nenhuma câmera foi encontrada');
-      } else if (_showScanner || (!_showScanner && _isLoadingCameras)) {
+      }
+      if (_showScanner || (!_showScanner && _isLoadingCameras)) {
         return ScannerWidget(
           key: ValueKey(_selectedCamera?.deviceId),
           onDetect: widget.onDetect,

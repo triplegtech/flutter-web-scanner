@@ -91,7 +91,7 @@ Add the ZXing-JS library script tag inside the <head> section of your web/index.
 </html>
 ```
 
-Add the scan.js script
+Add your barcode_scanner.js script to anywhere in the web directory
 
 ```html
 <!-- web/index.html -->
@@ -112,3 +112,10 @@ Add the scan.js script
 </body>
 </html>
 ```
+
+> ⚠️ **Important**
+ Its required to add both of this scripts to your application, otherwise it wont run properly.
+
+### 3. Conclusion
+
+Now you can run your flutter application normally using the lib.
