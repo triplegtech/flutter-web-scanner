@@ -23,4 +23,4 @@
 ## 0.0.3-beta
 
 *   Fix initialize error
-*   Improve doc
+*   Improve documentation
