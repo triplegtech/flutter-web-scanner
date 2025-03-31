@@ -1,4 +1,4 @@
-## 0.0.1
+## 0.0.1-beta
 
 *   **Initial Public Release**
 *   Introduced the `omni_qrcode_barcode_web_reader` package, providing a solution for integrating camera-based barcode and QR code scanning directly within Flutter Web applications.
