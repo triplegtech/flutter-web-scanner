@@ -123,14 +123,14 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
           !_isLoadingCameras) {
         return const CameraErrorWidget(error: 'Nenhuma câmera foi encontrada');
       } else if (_selectedCamera == null && _isLoadingCameras) {
-        return widget.placeholder ??
-            Center(
-              child: SizedBox(
+        return Center(
+          child: widget.placeholder ??
+              SizedBox(
                 child: CircularProgressIndicator(
                   color: Theme.of(context).textTheme.bodySmall?.color,
                 ),
               ),
-            );
+        );
       } else {
         return ScannerWidget(
           key: ValueKey(_selectedCamera?.deviceId),

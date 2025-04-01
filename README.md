@@ -25,13 +25,13 @@ This package leverages the browser's `getUserMedia` API to access the camera and
 * onDetect: Callback function whenever the scan works;
 
     ```dart
-    Funtion(BarcodeResult result) {
+    void Function(BarcodeResult result) {
 
     }
     ```
 * onError: Callback function whenever the scan fails;
     ```dart
-     Funtion?(String? error) {
+    void Function?(String? error) {
 
     }
     ```
@@ -92,8 +92,21 @@ Add the ZXing-JS library script tag inside the <head> section of your web/index.
 ```
 
 > ⚠️ **Important**
- Its required to add both of this scripts to your application, otherwise it wont run properly.
+ Its required to add this script to your application, otherwise it wont run properly.
 
-### 3. Conclusion
+### 3. Implementation
 
-Now you can run your flutter application normally using the lib.
+Before you run your flutter application you need to inject the package web dependencies using a spefic function:
+
+```dart
+import 'package:flutter/material.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  //DI Function
+  await injectOmniWebReaderWebDependencies();
+  runApp(const MyApp());
+}
+```
+> This will insert all needed javascript code 
