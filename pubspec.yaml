@@ -1,10 +1,10 @@
 name: omni_qrcode_barcode_web_reader
 description: "A QrCode and Barcode web reader"
-version: 1.0.0
+version: 1.0.1
 homepage: https://github.com/omnipharma/omni_qrcode_barcode_web_reader.git
 
 environment:
-  sdk: 3.6.0
+  sdk: ^3.6.0
   flutter: ">=1.17.0"
 
 dependencies:

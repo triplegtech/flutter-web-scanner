@@ -34,3 +34,8 @@
 
 *  Fix documentation
 *  Fix placeholder alignment
+
+## 1.0.1
+
+*  Fix minimum version
+
