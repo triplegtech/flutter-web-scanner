@@ -1,32 +1,51 @@
+name: Publish Flutter Package to pub.dev
+
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
-    types:
-      - closed
+    tags:
+      - 'v*.*.*'
+
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  publish:
+    name: Publish Package
+    runs-on: ubuntu-latest 
+
     steps:
-      - uses: actions/checkout@v2
-      - name: Install Flutter
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.27.0'
+          channel: 'stable'
+          cache: true 
+
       - name: Install dependencies
         run: flutter pub get
-      - name: Analyze
+
+      - name: Analyze project source
         run: flutter analyze
-      - name: Format code
-        run: dart format --fix .
-      - name: Check Publish Warnings
+
+      - name: Decode pub credentials
+        run: |
+          mkdir -p $HOME/.config/dart # Standard directory for credentials
+          echo "${{ secrets.PUB_CREDENTIALS_JSON }}" > $HOME/.config/dart/pub-credentials.json
+
+      - name: Check publish warnings
         run: dart pub publish --dry-run
-      - name: Publish
-        uses: k-paxian/dart-package-publisher@v1.5.1
+
+      - name: Publish package
+        run: dart pub publish --force
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
         with:
-          credentialJson: ${{ secrets.PUB_CREDENTIAL_JSON }}
-          flutter: true
-          skipTests: true
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          body: | 
+            See [CHANGELOG.md](CHANGELOG.md) for details.
+          draft: false
+          prerelease: false
