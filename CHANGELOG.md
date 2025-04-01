@@ -30,7 +30,7 @@
 *   Add the scanner.js
 *   Fix rendering problems
 
-## 0.0.5-beta
+## 1.0.0
 
 *  Fix documentation
 *  Fix placeholder alignment

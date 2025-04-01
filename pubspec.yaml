@@ -1,6 +1,6 @@
 name: omni_qrcode_barcode_web_reader
 description: "A QrCode and Barcode web reader"
-version: 0.0.5-beta
+version: 1.0.0
 homepage: https://github.com/omnipharma/omni_qrcode_barcode_web_reader.git
 
 environment:
