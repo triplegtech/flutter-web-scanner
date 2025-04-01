@@ -1,3 +1,5 @@
+// ignore_for_file: unused_field
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/enums/overlay_enum.dart';
@@ -39,6 +41,19 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
   bool _isLoadingCameras = kIsWeb;
   bool _hasCameraPermission = true;
   bool _showScanner = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (kIsWeb) {
+      _loadCameras();
+    } else {
+      setState(() {
+        _isLoadingCameras = false;
+        _errorMessage = "Omni web scanner only works on Flutter Web.";
+      });
+    }
+  }
 
   Future<void> _loadCameras() async {
     setState(() {
@@ -95,19 +110,6 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    if (kIsWeb) {
-      _loadCameras();
-    } else {
-      setState(() {
-        _isLoadingCameras = false;
-        _errorMessage = "Omni web scanner only works on Flutter Web.";
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     if (kIsWeb) {
       if (!_hasCameraPermission) {
@@ -116,8 +118,20 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
               ? _errorMessage
               : 'Permissão da câmera é necessária',
         );
-      }
-      if (_showScanner || (!_showScanner && _isLoadingCameras)) {
+      } else if (_selectedCamera == null &&
+          !_hasCameraPermission &&
+          !_isLoadingCameras) {
+        return const CameraErrorWidget(error: 'Nenhuma câmera foi encontrada');
+      } else if (_selectedCamera == null && _isLoadingCameras) {
+        return widget.placeholder ??
+            Center(
+              child: SizedBox(
+                child: CircularProgressIndicator(
+                  color: Theme.of(context).textTheme.bodySmall?.color,
+                ),
+              ),
+            );
+      } else {
         return ScannerWidget(
           key: ValueKey(_selectedCamera?.deviceId),
           onDetect: widget.onDetect,
@@ -128,10 +142,6 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
           width: widget.width,
           placeholder: widget.placeholder,
           scanMode: widget.overlay,
-        );
-      } else {
-        return CameraErrorWidget(
-          error: 'Erro ao inicializar scanner.',
         );
       }
     } else {

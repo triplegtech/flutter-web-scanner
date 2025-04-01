@@ -24,3 +24,8 @@
 
 *   Fix initialize error
 *   Improve documentation
+
+## 0.0.4_beta
+
+*   Add the scanner.js
+*   Fix rendering problems

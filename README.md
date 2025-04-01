@@ -91,28 +91,6 @@ Add the ZXing-JS library script tag inside the <head> section of your web/index.
 </html>
 ```
 
-Add your barcode_scanner.js script to anywhere in the web directory
-
-```html
-<!-- web/index.html -->
-<!DOCTYPE html>
-<html>
-<head>
-  <!-- ... other head elements ... -->
-  <title>My Scanner App</title>
-
- <!-- ADD the Interop JS file -->
-  <script src="barcode_scanner.js" defer></script>
-
-  <!-- ... other head elements ... -->
-</head>
-<body>
-  <!-- Flutter app script will be here -->
-  <script src="main.dart.js" type="application/javascript"></script>
-</body>
-</html>
-```
-
 > ⚠️ **Important**
  Its required to add both of this scripts to your application, otherwise it wont run properly.
 

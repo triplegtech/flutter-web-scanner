@@ -60,9 +60,8 @@ class ScannerWidget extends StatefulWidget {
 }
 
 class _ScannerWidgetState extends State<ScannerWidget> {
-  final String _viewId =
+  late final String _viewId =
       'web_barcode_scanner_${DateTime.now().microsecondsSinceEpoch}';
-
   late final String _videoContainerId = 'container_$_viewId';
 
   bool _isInitializing = true;
@@ -73,12 +72,12 @@ class _ScannerWidgetState extends State<ScannerWidget> {
   Timer? _debounceTimer;
   String? _lastDetectedValue;
 
-  String? _currentDeviceId;
+  String? _activeDeviceId;
 
   @override
   void initState() {
     super.initState();
-    _currentDeviceId = widget.deviceId;
+    _activeDeviceId = widget.deviceId;
     ui.platformViewRegistry.registerViewFactory(
       _viewId,
       (int viewId) => html.DivElement()
@@ -99,9 +98,9 @@ class _ScannerWidgetState extends State<ScannerWidget> {
     super.didUpdateWidget(oldWidget);
     if (widget.deviceId != oldWidget.deviceId && !_isDisposed) {
       if (kDebugMode) {
-        log("WebBarcodeScanner: deviceId changed, restarting camera.");
+        log("ScannerWidget: deviceId changed ('${oldWidget.deviceId}' -> '${widget.deviceId}'), restarting camera.");
       }
-      _currentDeviceId = widget.deviceId;
+      _activeDeviceId = widget.deviceId;
       _stopCameraResources().then((_) {
         if (!_isDisposed) {
           _startCamera();
@@ -111,7 +110,9 @@ class _ScannerWidgetState extends State<ScannerWidget> {
   }
 
   Future<void> _startCamera() async {
-    if (_isDisposed) return;
+    if (kDebugMode) {
+      log("ScannerWidget: _startCamera executing for deviceId: $_activeDeviceId");
+    }
 
     setState(() {
       _isInitializing = true;
@@ -123,7 +124,7 @@ class _ScannerWidgetState extends State<ScannerWidget> {
       await js_util.promiseToFuture<void>(interop.startCamera(
         _videoContainerId,
         _viewId,
-        _currentDeviceId,
+        _activeDeviceId,
         allowInterop(_handleDetection),
         allowInterop(_handleError),
       ));
@@ -193,23 +194,22 @@ class _ScannerWidgetState extends State<ScannerWidget> {
         alignment: Alignment.center,
         children: [
           HtmlElementView(viewType: _viewId),
-          if (!_isInitializing) ...[
+          if (!_isInitializing && !_hasError) ...[
             if (widget.scanMode == ScanMode.Barcode) BarcodeOverlayWidget(),
             if (widget.scanMode == ScanMode.QrCode) QrCodeOverlayWidget(),
           ],
-          if (_isInitializing && widget.placeholder != null)
-            widget.placeholder!,
-          if (_isInitializing && widget.placeholder == null)
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation(
-                  Theme.of(context).textTheme.bodySmall?.color),
-            ),
+          if (_isInitializing)
+            widget.placeholder ??
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation(
+                      Theme.of(context).textTheme.bodySmall?.color),
+                ),
           if (_hasError)
             Container(
               color: Colors.black.withOpacity(0.7),
               padding: const EdgeInsets.all(16.0),
               child: Text(
-                'Error: $_errorMessage',
+                'Erro: $_errorMessage',
                 style: const TextStyle(color: Colors.white),
                 textAlign: TextAlign.center,
               ),
