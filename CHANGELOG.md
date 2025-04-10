@@ -1,3 +1,30 @@
+## 1.0.2
+
+* Improve permission handling
+
+## 1.0.1
+
+*  Fix minimum version
+
+## 1.0.0
+
+*  Fix documentation
+*  Fix placeholder alignment
+
+## 0.0.4-beta
+
+*   Add the scanner.js
+*   Fix rendering problems
+
+## 0.0.3-beta
+
+*   Fix initialize error
+*   Improve documentation
+
+## 0.0.2-beta
+
+*   Introduced a usage example
+
 ## 0.0.1-beta
 
 *   **Initial Public Release**
@@ -15,27 +42,6 @@
     *   Supports displaying a custom `placeholder` widget during the camera initialization phase.
 *   **Setup:** Requires adding script tags for the ZXing-JS library and the package's `barcode_scanner.js` interop file to the project's `web/index.html`.
 
-## 0.0.2-beta
-
-*   Introduced a usage example
 
 
-## 0.0.3-beta
-
-*   Fix initialize error
-*   Improve documentation
-
-## 0.0.4-beta
-
-*   Add the scanner.js
-*   Fix rendering problems
-
-## 1.0.0
-
-*  Fix documentation
-*  Fix placeholder alignment
-
-## 1.0.1
-
-*  Fix minimum version
 
