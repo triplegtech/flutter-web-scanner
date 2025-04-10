@@ -2,6 +2,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/enums/overlay_enum.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/barcode_result.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/camera_model.dart';
@@ -91,7 +92,8 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
     }
   }
 
-  void _startScanner() {
+  void _startScanner() async {
+    await Future.delayed(1.seconds);
     if (_selectedCamera != null) {
       setState(() {
         _showScanner = true;
@@ -112,17 +114,11 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
   @override
   Widget build(BuildContext context) {
     if (kIsWeb) {
-      if (!_hasCameraPermission) {
-        return CameraErrorWidget(
-          error: _errorMessage.isNotEmpty
-              ? _errorMessage
-              : 'Permissão da câmera é necessária',
-        );
+      if (_errorMessage.isNotEmpty) {
+        return CameraErrorWidget(error: _errorMessage);
       } else if (_selectedCamera == null &&
-          !_hasCameraPermission &&
-          !_isLoadingCameras) {
-        return const CameraErrorWidget(error: 'Nenhuma câmera foi encontrada');
-      } else if (_selectedCamera == null && _isLoadingCameras) {
+          _isLoadingCameras &&
+          _errorMessage.isEmpty) {
         return Center(
           child: widget.placeholder ??
               SizedBox(

@@ -1,5 +1,9 @@
 ## 1.0.2
 
+* Improve barcode script for iOS devices
+
+## 1.0.2
+
 * Improve permission handling
 * Fix changelog version history order
 

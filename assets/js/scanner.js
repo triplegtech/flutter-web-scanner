@@ -84,32 +84,41 @@ async function startCamera(videoContainerId, viewId, requestedDeviceId, onDetect
     videoElement.style.width = '100%';
     videoElement.style.height = '100%';
     videoElement.style.objectFit = 'cover';
-    videoElement.setAttribute('playsinline', '');
+    videoElement.setAttribute('playsinline', 'true');
+    videoElement.setAttribute('autoplay', 'true');
+    videoElement.setAttribute('muted', 'true');
     videoContainer.appendChild(videoElement);
     window.scannerState.videoElement = videoElement;
-
     console.log(`[JS] Video element created and appended: ${videoElement.id}`);
 
+    // --- Add Video Event Listeners for Debugging ---
+    videoElement.addEventListener('loadedmetadata', (e) => { console.log(`[JS][Video Event] loadedmetadata - ViewId: ${viewId}`); });
+    videoElement.addEventListener('canplay', (e) => { console.log(`[JS][Video Event] canplay - ViewId: ${viewId}`); });
+    videoElement.addEventListener('playing', (e) => { console.log(`[JS][Video Event] playing - ViewId: ${viewId}`); });
+    videoElement.addEventListener('error', (e) => {
+        console.error(`[JS][Video Event] error - ViewId: ${viewId}`, videoElement.error);
+        // Report this error if it seems relevant
+        if (window.scannerState.onErrorCallback) {
+            window.scannerState.onErrorCallback(`Video element error: ${videoElement.error?.message || 'Unknown video error'}`);
+        }
+    });
+    videoElement.addEventListener('stalled', (e) => {
+        console.warn(`[JS][Video Event] stalled - ViewId: ${viewId}. Video playback may have stopped.`);
+        // Maybe report this as a potential issue?
+        if (window.scannerState.onErrorCallback) {
+            window.scannerState.onErrorCallback(`Video playback stalled. Check connection or permissions.`);
+        }
+    });
+    // --- End Video Event Listeners ---
+
+
+    // --- Multi-Attempt Camera Acquisition (Keep from previous version) ---
     let stream = null;
-    let currentConstraints = null;
     let selectedDeviceId = null;
 
-    if (requestedDeviceId && requestedDeviceId.length > 0) {
-        currentConstraints = { video: { deviceId: { exact: requestedDeviceId } } };
-        console.log(`[JS] Attempt 1: Trying getUserMedia with exact deviceId: ${requestedDeviceId}`);
-        try {
-            stream = await navigator.mediaDevices.getUserMedia(currentConstraints);
-            selectedDeviceId = requestedDeviceId;
-            console.log(`[JS] Attempt 1 SUCCESS: Got stream with exact deviceId: ${selectedDeviceId}`);
-        } catch (error) {
-            console.warn(`[JS] Attempt 1 FAILED (exact deviceId: ${requestedDeviceId}): ${error.name}`);
-            if (error.name !== 'OverconstrainedError' && error.name !== 'NotFoundError' && error.name !== 'DevicesNotFoundError') {
-                _reportCameraError(error, requestedDeviceId, window.scannerState.onErrorCallback);
-                return;
-            }
-        }
-    }
-
+    // Attempt 1: Exact Device ID
+    if (requestedDeviceId && requestedDeviceId.length > 0) { /* ... try exact ... */ }
+    // Attempt 2: Ideal Device ID or FacingMode
     if (!stream) {
         if (requestedDeviceId && requestedDeviceId.length > 0) {
             currentConstraints = { video: { deviceId: { ideal: requestedDeviceId } } };
@@ -123,61 +132,132 @@ async function startCamera(videoContainerId, viewId, requestedDeviceId, onDetect
             console.log(`[JS] Attempt 2 SUCCESS: Got stream with ideal constraints.`);
         } catch (error) {
             console.warn(`[JS] Attempt 2 FAILED (ideal constraints): ${error.name}`);
+            // If this attempt also fails, report the *latest* error and stop.
             _reportCameraError(error, requestedDeviceId, window.scannerState.onErrorCallback);
             await stopCamera(viewId);
             return;
         }
     }
 
+    // --- Process Successful Stream ---
     if (stream) {
         window.scannerState.stream = stream;
 
-        try {
-            const videoTracks = stream.getVideoTracks();
-            if (videoTracks.length > 0) {
-                const settings = videoTracks[0].getSettings();
-                selectedDeviceId = settings.deviceId; // Update with actual ID
-                console.log(`[JS] Actual settings for track: ${videoTracks[0].label}`, settings);
-                console.log(`[JS] Actual deviceId being used: ${selectedDeviceId}`);
-            }
-        } catch (e) { console.warn("[JS] Could not get settings from video track:", e); }
-
-
-        console.log(`[JS] Starting ZXing decodeFromStream for viewId: ${viewId}`);
-        try {
-            window.scannerState.codeReader.decodeFromStream(stream, videoElement, (result, err) => {
-                if (result) {
-                    console.log(`[JS] Code detected (viewId: ${viewId}):`, result.getText());
-                    if (window.scannerState.onDetectCallback) {
-                        window.scannerState.onDetectCallback(result.getText(), result.getBarcodeFormat().toString());
-                    }
-                }
-                if (err && !(err instanceof ZXing.NotFoundException)) {
-                    console.error(`[JS] Decode loop error (viewId: ${viewId}):`, err);
-
-                    if (window.scannerState.onErrorCallback) {
-                        window.scannerState.onErrorCallback(`Decode Error: ${err.message}`);
-                    }
-                }
-            });
-
-            console.log(`[JS] decodeFromStream initiated successfully for viewId: ${viewId}`);
-
-        } catch (decodeError) {
-            console.error("[JS] Error initiating decodeFromStream:", decodeError);
-            _reportCameraError(decodeError, selectedDeviceId || requestedDeviceId, window.scannerState.onErrorCallback);
+        // --- Verify Stream State ---
+        console.log(`[JS] Stream obtained. Active: ${stream.active}`);
+        const videoTracks = stream.getVideoTracks();
+        if (videoTracks.length === 0) {
+            console.error("[JS] Error: Stream obtained but has no video tracks!");
+            _reportCameraError({ name: 'NoVideoTracksError', message: 'Stream has no video tracks.' }, requestedDeviceId, window.scannerState.onErrorCallback);
             await stopCamera(viewId);
             return;
         }
-    } else {
-        console.error("[JS] Failed to obtain camera stream after all attempts.");
-        if (window.scannerState.onErrorCallback) {
-            window.scannerState.onErrorCallback("Could not start camera after multiple attempts.");
+        console.log(`[JS] Video Tracks: ${videoTracks.length}`);
+        videoTracks.forEach(track => {
+            console.log(`[JS] - Track ID: ${track.id}, Label: ${track.label}, ReadyState: ${track.readyState}, Enabled: ${track.enabled}`);
+            if (track.readyState !== 'live') {
+                console.warn(`[JS] - Track ${track.id} is not live! State: ${track.readyState}`);
+                // This might indicate an issue, but proceed for now
+            }
+            // Listen for track ending prematurely
+            track.onended = () => {
+                console.warn(`[JS] Video track ended unexpectedly! ID: ${track.id}, Label: ${track.label}`);
+                if (window.scannerState.onErrorCallback) {
+                    window.scannerState.onErrorCallback(`Camera track ended unexpectedly. (ViewId: ${viewId})`);
+                }
+                // Consider stopping the whole process if a track ends?
+                stopCamera(viewId);
+            };
+        });
+        // --- End Stream State Verification ---
+
+
+        // --- Attach Stream and Attempt Play ---
+        console.log(`[JS] Attaching stream to video element (srcObject)`);
+        videoElement.srcObject = stream;
+
+        // Try explicitly playing the video - crucial for iOS sometimes
+        try {
+            console.log('[JS] Attempting videoElement.play()...');
+            await videoElement.play();
+            console.log('[JS] videoElement.play() promise resolved.');
+            // If play() succeeds, wait for 'playing' event OR proceed to decode
+
+            // --- Initiate Decoding (Option A: Immediately after play starts) ---
+            // console.log(`[JS] Initiating decodeFromStream immediately after play() resolves.`);
+            // initiateDecoding(stream, videoElement, viewId); // Call helper
+
+            // --- Initiate Decoding (Option B: Wait for 'playing' event - Safer for iOS) ---
+            // Add a one-time listener for the 'playing' event
+            let decodeInitiated = false;
+            const playingListener = async () => {
+                if (decodeInitiated) return; // Prevent multiple calls
+                decodeInitiated = true;
+                console.log(`[JS] 'playing' event fired. Initiating decodeFromStream.`);
+                initiateDecoding(stream, videoElement, viewId); // Call helper
+                videoElement.removeEventListener('playing', playingListener); // Clean up listener
+            };
+            videoElement.addEventListener('playing', playingListener);
+            // Add a timeout in case 'playing' never fires
+            setTimeout(() => {
+                if (!decodeInitiated && !window.scannerState.stream) { // Check if already stopped
+                    console.warn("[JS] Timeout waiting for 'playing' event. Video might not start.");
+                    videoElement.removeEventListener('playing', playingListener); // Clean up listener
+                    // Decide: report error or try initiating decode anyway?
+                    // _reportCameraError({ name: 'VideoPlaybackTimeout', message: 'Video did not start playing.' }, requestedDeviceId, window.scannerState.onErrorCallback);
+                    initiateDecoding(stream, videoElement, viewId); // Risky: Try anyway?
+                }
+            }, 3000);
+
+
+        } catch (playError) {
+            console.error('[JS] Error calling videoElement.play():', playError.name, playError.message);
+            _reportCameraError(playError, selectedDeviceId || requestedDeviceId, window.scannerState.onErrorCallback);
+            await stopCamera(viewId);
+            return;
         }
+
+    } else {
+        console.error("[JS] Failed to obtain camera stream after all attempts (final check).");
         await stopCamera(viewId);
     }
 }
 
+
+// Helper function to start the decoding loop
+function initiateDecoding(stream, videoElement, viewId) {
+    // Check if reader still exists (might have been cleared by an error/stop)
+    if (!window.scannerState.codeReader) {
+        console.warn(`[JS] initiateDecoding called, but codeReader is null (viewId: ${viewId}). Skipping.`);
+        return;
+    }
+    console.log(`[JS] Starting ZXing decodeFromStream for viewId: ${viewId}`);
+    try {
+        window.scannerState.codeReader.decodeFromStream(stream, videoElement, (result, err) => {
+            // Check if the current state still belongs to this viewId before processing
+            if (window.scannerState.viewId !== viewId) return;
+
+            if (result) {
+                // console.log(`[JS] Code detected (viewId: ${viewId}):`, result.getText()); // Can be noisy
+                if (window.scannerState.onDetectCallback) {
+                    window.scannerState.onDetectCallback(result.getText(), result.getBarcodeFormat().toString());
+                }
+            }
+            if (err && !(err instanceof ZXing.NotFoundException)) {
+                console.error(`[JS] Decode loop error (viewId: ${viewId}):`, err);
+                // Consider if/how to report these non-fatal errors
+                // if (window.scannerState.onErrorCallback) { ... }
+            }
+        });
+        console.log(`[JS] decodeFromStream initiated successfully for viewId: ${viewId}`);
+    } catch (decodeError) {
+        console.error("[JS] Error initiating decodeFromStream:", decodeError);
+        // Report error (use the main error reporter)
+        _reportCameraError(decodeError, window.scannerState.stream?.getVideoTracks()[0]?.getSettings().deviceId || 'N/A', window.scannerState.onErrorCallback);
+        // Don't necessarily stop camera here, maybe just decoding failed? Monitor.
+        stopCamera(viewId);
+    }
+}
 async function stopCamera(viewId) {
     console.log(`[JS] stopCamera called for viewId: ${viewId}`);
     if (window.scannerState.viewId !== viewId && window.scannerState.viewId !== null) {
