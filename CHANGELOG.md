@@ -1,6 +1,7 @@
 ## 1.0.2
 
 * Improve permission handling
+* Fix changelog version history order
 
 ## 1.0.1
 
