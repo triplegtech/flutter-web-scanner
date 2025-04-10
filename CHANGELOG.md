@@ -1,3 +1,7 @@
+## 1.0.4
+
+* Improve scanner widget if clauses
+
 ## 1.0.3
 
 * Improve barcode script for iOS devices
