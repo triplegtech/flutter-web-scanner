@@ -62,9 +62,9 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
       _hasCameraPermission = true;
     });
     try {
-      final device = await getCameraDevice();
+      final devices = await getCameraDevice();
       if (mounted) {
-        if (device == null) {
+        if (devices.isNotEmpty) {
           setState(() {
             _errorMessage =
                 "Nenhuma câmera encontrada ou permissão negada. Por favor, certifique-se de que você concedeu acesso à câmera para este site.";
@@ -72,7 +72,7 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
           });
         }
         setState(() {
-          _selectedCamera = device;
+          _selectedCamera = devices.first;
         });
 
         _startScanner();

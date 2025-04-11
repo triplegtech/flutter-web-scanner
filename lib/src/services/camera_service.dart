@@ -14,7 +14,7 @@ import 'package:omni_qrcode_barcode_web_reader/src/models/camera_model.dart';
 import '../../js_interop.dart' as interop;
 import 'dart:html' as html;
 
-Future<CameraModel?> getCameraDevice() async {
+Future<List<CameraModel>> getCameraDevice() async {
   try {
     final Object jsResult =
         await js_util.promiseToFuture<Object>(interop.getVideoInputDevices());
@@ -35,33 +35,38 @@ Future<CameraModel?> getCameraDevice() async {
         }
       }
 
-      if (GetPlatform.isIOS) {
-        if (isDeviceLanguagePortuguese()) {
-          devices
-              .retainWhere((d) => d.label.toLowerCase() == 'câmera traseira');
-        } else {
-          devices.retainWhere((d) => d.label.toLowerCase() == 'back camera');
-        }
-      } else if (GetPlatform.isAndroid) {
-        if (isDeviceLanguagePortuguese()) {
-          devices
-              .retainWhere((d) => d.label.toLowerCase().contains('traseira'));
-        } else {
-          devices.retainWhere((d) => d.label.toLowerCase().contains('back'));
-        }
+      log('untreated camera list: $devices');
+      
+      log('IS ANDROID: ${GetPlatform.isAndroid}');
+      log('IS IOS: ${GetPlatform.isIOS}');
 
-        devices.sort(
-          (a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()),
-        );
-      }
+      // if (GetPlatform.isIOS) {
+      //   if (isDeviceLanguagePortuguese()) {
+      //     devices
+      //         .retainWhere((d) => d.label.toLowerCase() == 'câmera traseira');
+      //   } else {
+      //     devices.retainWhere((d) => d.label.toLowerCase() == 'back camera');
+      //   }
+      // } else if (GetPlatform.isAndroid) {
+      //   if (isDeviceLanguagePortuguese()) {
+      //     devices
+      //         .retainWhere((d) => d.label.toLowerCase().contains('traseira'));
+      //   } else {
+      //     devices.retainWhere((d) => d.label.toLowerCase().contains('back'));
+      //   }
 
-      return devices.first;
+      //   devices.sort(
+      //     (a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()),
+      //   );
+      // }
+
+      return devices;
     } else {
       log("Warning: getVideoInputDevices did not return a List.");
-      return null;
+      return [];
     }
   } catch (e) {
     log("Error getting camera devices: $e");
-    return null;
+    return [];
   }
 }
