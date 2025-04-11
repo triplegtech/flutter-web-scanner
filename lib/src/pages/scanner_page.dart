@@ -62,7 +62,7 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
       _hasCameraPermission = true;
     });
     try {
-      final devices = await getCameraDevice();
+      final devices = await getCameraDevices();
       if (mounted) {
         if (devices.isEmpty) {
           setState(() {

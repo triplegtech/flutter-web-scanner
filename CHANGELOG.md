@@ -25,7 +25,11 @@
 *  Fix documentation
 *  Fix placeholder alignment
 
-## 0.0.4-beta
+## 0.0.6-beta
+
+*  Improving camera selection
+
+## 0.0.5-beta
 
 *  Testing camera selection
 
