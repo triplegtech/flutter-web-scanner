@@ -70,12 +70,13 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
                 "Nenhuma câmera encontrada ou permissão negada. Por favor, certifique-se de que você concedeu acesso à câmera para este site.";
             _hasCameraPermission = false;
           });
-        }
-        setState(() {
-          _selectedCamera = devices.first;
-        });
+        } else {
+          setState(() {
+            _selectedCamera = devices.first;
+          });
 
-        _startScanner();
+          _startScanner();
+        }
       }
     } catch (e) {
       if (mounted) {
