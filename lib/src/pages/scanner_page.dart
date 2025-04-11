@@ -64,7 +64,7 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
     try {
       final devices = await getCameraDevice();
       if (mounted) {
-        if (devices.isNotEmpty) {
+        if (devices.isEmpty) {
           setState(() {
             _errorMessage =
                 "Nenhuma câmera encontrada ou permissão negada. Por favor, certifique-se de que você concedeu acesso à câmera para este site.";
