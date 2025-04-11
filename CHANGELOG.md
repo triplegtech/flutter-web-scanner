@@ -1,3 +1,4 @@
+
 ## 1.0.5
 
 * Removing js script changes
@@ -23,6 +24,10 @@
 
 *  Fix documentation
 *  Fix placeholder alignment
+
+## 0.0.4-beta
+
+*  Testing camera selection
 
 ## 0.0.4-beta
 
