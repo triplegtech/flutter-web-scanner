@@ -30,7 +30,7 @@ jobs:
       - name: Decode pub credentials
         run: |
           mkdir -p $HOME/.config/dart # Standard directory for credentials
-          echo "${{ secrets.PUB_CREDENTIALS_JSON }}" > $HOME/.config/dart/pub-credentials.json
+          echo "${{ secrets.PUB_CREDENTIAL_JSON}}" > $HOME/.config/dart/pub-credentials.json
 
       - name: Check publish warnings
         run: dart pub publish --dry-run
