@@ -1,3 +1,7 @@
+## 1.0.5
+
+* Removing js script changes
+
 ## 1.0.4
 
 * Improve scanner widget if clauses

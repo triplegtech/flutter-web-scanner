@@ -36,15 +36,11 @@ class OmniWebScanner extends StatefulWidget {
 }
 
 class _OmniWebScannerState extends State<OmniWebScanner> {
-  BarcodeResult? _latestResult;
   String _errorMessage = '';
-
-  // State for camera selection
-  List<CameraModel> _cameras = [];
   CameraModel? _selectedCamera;
-  bool _isLoadingCameras = kIsWeb; // Start loading only on web
-  bool _hasCameraPermission = true; // Assume true initially
-  bool _showScanner = false; // Only show scanner after selection/confirmation
+  bool _isLoadingCameras = kIsWeb;
+  bool _hasCameraPermission = true;
+  bool _showScanner = false;
 
   @override
   void initState() {
@@ -54,7 +50,7 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
     } else {
       setState(() {
         _isLoadingCameras = false;
-        _errorMessage = "WebBarcodeScanner only works on Flutter Web.";
+        _errorMessage = "Omni web scanner only works on Flutter Web.";
       });
     }
   }
@@ -62,8 +58,8 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
   Future<void> _loadCameras() async {
     setState(() {
       _isLoadingCameras = true;
-      _errorMessage = ''; // Clear previous errors
-      _hasCameraPermission = true; // Reset permission assumption
+      _errorMessage = '';
+      _hasCameraPermission = true;
     });
     try {
       final device = await getCameraDevice();
@@ -71,23 +67,20 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
         if (device == null) {
           setState(() {
             _errorMessage =
-                "No cameras found or permission denied. Please ensure you've granted camera access to this site.";
+                "Nenhuma câmera encontrada ou permissão negada. Por favor, certifique-se de que você concedeu acesso à câmera para este site.";
             _hasCameraPermission = false;
           });
         }
         setState(() {
-          _cameras = [device!];
-          if (_cameras.isNotEmpty) {
-            _selectedCamera = _cameras.first;
-
-            _startScanner();
-          }
+          _selectedCamera = device;
         });
+
+        _startScanner();
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = "Error loading cameras: $e";
+          _errorMessage = "Error ao carregar câmeras: $e";
         });
       }
     } finally {
@@ -100,21 +93,19 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
   }
 
   void _startScanner() {
-    if (_selectedCamera != null || _cameras.isNotEmpty) {
+    if (_selectedCamera != null) {
       setState(() {
         _showScanner = true;
-        _latestResult = null;
         _errorMessage = '';
       });
     } else if (!_hasCameraPermission) {
       setState(() {
         _errorMessage =
-            "Cannot start scanner: Camera permission denied or no cameras found.";
+            "Permissão de câmera negada ou nenhuma câmera encontrada.";
       });
     } else {
       setState(() {
-        _errorMessage =
-            "Cannot start scanner: No camera selected or available.";
+        _errorMessage = "Nenhuma câmera selecionada ou disponível";
       });
     }
   }
