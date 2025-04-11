@@ -1,3 +1,7 @@
+## 1.0.7
+
+* Improves camera selection for mobile devices
+
 ## 1.0.6
 
 * Improves camera selection for mobile devices

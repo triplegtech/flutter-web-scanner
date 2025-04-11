@@ -65,6 +65,7 @@ dependencies:
     sdk: flutter
   omni_qrcode_barcode_web_reader: ^latest # Check pub.dev for the latest version
   js: ^0.6.7 # Or latest JS interop package version
+  get: ^4.7.2 # Or higher, check pub.dev for the latest stable version
 ```
 
 ### 2. Setup
