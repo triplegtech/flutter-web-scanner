@@ -25,6 +25,10 @@
 *  Fix documentation
 *  Fix placeholder alignment
 
+## 0.0.7-beta
+
+*  Improving camera selection for android devices
+
 ## 0.0.6-beta
 
 *  Improving camera selection

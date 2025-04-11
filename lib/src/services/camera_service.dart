@@ -138,6 +138,12 @@ Future<List<CameraModel>> getCameraDevices() async {
       // 3. Sort devices based on score (ascending - lower score first)
       scoredDevices.sort((a, b) => a.score.compareTo(b.score));
 
+      if (GetPlatform.isAndroid) {
+        scoredDevices.sort((a, b) => a.device.label
+            .toLowerCase()
+            .compareTo(b.device.label.toLowerCase()));
+      }
+
       // 4. Extract the sorted CameraModel list
       final List<CameraModel> prioritizedList =
           scoredDevices.map((sd) => sd.device).toList();
