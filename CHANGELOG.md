@@ -1,3 +1,7 @@
+## 1.0.8
+
+* Improves camera selection for iOS devices
+
 ## 1.0.7
 
 * Improves camera selection for mobile devices
