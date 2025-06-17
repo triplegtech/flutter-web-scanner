@@ -1,4 +1,4 @@
-## 1.0.8
+## 1.0.9
 
 * Fix camera selection for iOS devices for close range scan
 
