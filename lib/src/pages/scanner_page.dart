@@ -76,9 +76,9 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
             setState(() {
               _selectedCamera = devices.firstWhere(
                 (device) =>
-                    ['ultra wide', 'ultra angular', 'grande angular'].contains(
-                  device.label.toLowerCase(),
-                ),
+                    device.label.toLowerCase().contains('ultra wide') ||
+                    device.label.toLowerCase().contains('ultra-angular') ||
+                    device.label.toLowerCase().contains('ultra angular'),
                 orElse: () => devices.first,
               );
             });
