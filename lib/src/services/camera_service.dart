@@ -142,7 +142,7 @@ Future<List<CameraModel>> getCameraDevices() async {
         scoredDevices.sort((a, b) => a.device.label
             .toLowerCase()
             .compareTo(b.device.label.toLowerCase()));
-      } else {
+      } else if (GetPlatform.isIOS) {
         scoredDevices.retainWhere(
           (sd) =>
               sd.device.label.toLowerCase().contains('ultra wide') ||
