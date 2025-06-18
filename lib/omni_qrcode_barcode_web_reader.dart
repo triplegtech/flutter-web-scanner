@@ -1,5 +1,7 @@
 export 'src/pages/scanner_page.dart';
 export 'src/enums/overlay_enum.dart';
+export 'src/services/scan_service.dart';
+
 import 'dart:html' as html;
 
 import 'package:flutter/services.dart';

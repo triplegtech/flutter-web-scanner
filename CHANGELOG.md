@@ -1,3 +1,8 @@
+## 1.1.0
+
+* Fix camera selection for iOS devices for close range scan
+* Adds support to file scan
+
 ## 1.0.9
 
 * Fix camera selection for iOS devices for close range scan

@@ -148,11 +148,6 @@ async function startCamera(videoContainerId, viewId, deviceId, onDetect, onError
 async function stopCamera(viewId) {
     console.log(`[JS] stopCamera called for viewId: ${viewId}`);
 
-    // if (window.scannerState.viewId !== viewId) {
-    //     console.warn(`[JS] Stop request for viewId ${viewId}, but current viewId is ${window.scannerState.viewId}. Ignoring.`);
-    //     return;
-    // }
-
     if (window.scannerState.codeReader) {
         try {
             window.scannerState.codeReader.reset();
@@ -190,4 +185,64 @@ async function stopCamera(viewId) {
     window.scannerState.videoContainerId = null;
     window.scannerState.viewId = null;
     console.log(`[JS] Scanner stopped and cleaned up for viewId: ${viewId}`);
+}
+
+async function loadImageFromFile(file) {
+    return new Promise((resolve, reject) => {
+        if (!file.type.startsWith('image/')) {
+            reject(new Error('Selected file is not an image.'));
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = (err) => {
+                console.error("[JS] Image.onerror:", err);
+                reject(new Error('Failed to load image data.'));
+            };
+            img.src = event.target.result;
+        };
+        reader.onerror = (err) => {
+            console.error("[JS] FileReader.onerror:", err);
+            reject(new Error('Failed to read file.'));
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+async function decodeBarcodeFromImage(imageFile) {
+    console.log("[JS] decodeBarcodeFromImage called with file:", imageFile.name, imageFile.type);
+
+    if (!window.ZXing) {
+        console.error("[JS] ZXing library not loaded for image decoding!");
+        return Promise.reject("ZXing library not loaded");
+    }
+
+    try {
+        const imgElement = await loadImageFromFile(imageFile);
+        console.log("[JS] Image loaded into img element:", imgElement.width, "x", imgElement.height);
+
+        const codeReader = new ZXing.BrowserMultiFormatReader();
+
+        const result = await codeReader.decodeFromImageElement(imgElement);
+
+        if (result) {
+            console.log("[JS] Image Decode Success:", result.getText(), result.getBarcodeFormat().toString());
+            return {
+                value: result.getText(),
+            };
+        } else {
+            console.log("[JS] No barcode found in image.");
+            return null;
+        }
+    } catch (err) {
+        console.error("[JS] Error decoding image:", err);
+        if (err instanceof ZXing.NotFoundException) {
+            console.log("[JS] NotFoundException: No barcode found in image.");
+            return null;
+        }
+        return Promise.reject(err.message || "Unknown error during image decoding");
+    }
 }

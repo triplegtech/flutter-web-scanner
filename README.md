@@ -19,6 +19,12 @@ This package leverages the browser's `getUserMedia` API to access the camera and
     *   Clear scanning area (cutout).
     *   Selectable overlay shapes optimized for QR Codes or Barcodes (`ScanMode`).
 *   Optional placeholder widget during camera initialization.
+*   Image File Scanning:
+    *   Decode barcodes and QR codes directly from image files (`Uint8List`).
+    *   Utility function `decodeBarcodeFromBytes` for easy integration:
+    ```dart
+    BarcodeResult? decodeBarcodeFromBytes(Uint8List imageData)
+    ```
 
 ## Parameters
 
