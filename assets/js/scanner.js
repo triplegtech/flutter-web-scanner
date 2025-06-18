@@ -232,7 +232,6 @@ async function decodeBarcodeFromImage(imageFile) {
             console.log("[JS] Image Decode Success:", result.getText(), result.getBarcodeFormat().toString());
             return {
                 value: result.getText(),
-                format: result.getBarcodeFormat().toString()
             };
         } else {
             console.log("[JS] No barcode found in image.");

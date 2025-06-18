@@ -142,6 +142,13 @@ Future<List<CameraModel>> getCameraDevices() async {
         scoredDevices.sort((a, b) => a.device.label
             .toLowerCase()
             .compareTo(b.device.label.toLowerCase()));
+      } else {
+        scoredDevices.retainWhere(
+          (sd) =>
+              sd.device.label.toLowerCase().contains('ultra wide') ||
+              sd.device.label.toLowerCase().contains('ultra-angular') ||
+              sd.device.label.toLowerCase().contains('ultra angular'),
+        );
       }
 
       // 4. Extract the sorted CameraModel list

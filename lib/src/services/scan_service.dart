@@ -1,16 +1,10 @@
 import 'dart:async';
 import 'dart:developer';
-import 'dart:typed_data';
-import 'package:flutter/foundation.dart'; // For kIsWeb
+import 'package:flutter/foundation.dart';
 import 'package:js/js_util.dart' as js_util;
 import 'package:omni_qrcode_barcode_web_reader/src/helpers/mimetype_helper.dart';
 import '../../js_interop.dart' as interop;
-
-// For web, you'll still need html.File if you directly pass it to JS
-// For mobile, you'd get Uint8List from XFile
-// ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html if (dart.library.io) 'dart:io';
-
 import 'package:omni_qrcode_barcode_web_reader/src/models/barcode_result.dart';
 
 Future<BarcodeResult?> decodeBarcodeFromBytes(Uint8List imageData) async {
@@ -36,11 +30,10 @@ Future<BarcodeResult?> decodeBarcodeFromBytes(Uint8List imageData) async {
       interop.decodeBarcodeFromImage(imageFile),
     );
 
-    if (result != null && result is Map) {
+    if (result != null) {
       final String? value = js_util.getProperty(result, 'value');
-      final String? format = js_util.getProperty(result, 'format');
-      if (value != null && format != null) {
-        return BarcodeResult(value: value, format: format);
+      if (value != null) {
+        return BarcodeResult(value: value, format: 'EAN-13');
       } else {
         throw Exception(
             "Failed to decode barcode: Invalid result structure from JS.");

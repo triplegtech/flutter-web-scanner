@@ -2,7 +2,6 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/enums/overlay_enum.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/barcode_result.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/camera_model.dart';
@@ -72,21 +71,9 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
             _hasCameraPermission = false;
           });
         } else {
-          if (GetPlatform.isIOS) {
-            setState(() {
-              _selectedCamera = devices.firstWhere(
-                (device) =>
-                    device.label.toLowerCase().contains('ultra wide') ||
-                    device.label.toLowerCase().contains('ultra-angular') ||
-                    device.label.toLowerCase().contains('ultra angular'),
-                orElse: () => devices.first,
-              );
-            });
-          } else {
-            setState(() {
-              _selectedCamera = devices.first;
-            });
-          }
+          setState(() {
+            _selectedCamera = devices.first;
+          });
 
           _startScanner();
         }
