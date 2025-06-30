@@ -12,6 +12,7 @@ import 'package:js/js_util.dart' as js_util; // For promiseToFuture
 import 'package:omni_qrcode_barcode_web_reader/omni_qrcode_barcode_web_reader.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/barcode_result.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/widgets/barcode_overlay_widget.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/widgets/error_widget.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/widgets/qr_code_overlay_widget.dart';
 
 import '../../js_interop.dart' as interop;
@@ -43,6 +44,9 @@ class ScannerWidget extends StatefulWidget {
   final String? deviceId;
   final ScanMode scanMode;
 
+  /// If true, shows a retry button when an error occurs during camera initialization.
+  final bool retryButton;
+
   const ScannerWidget({
     super.key,
     required this.onDetect,
@@ -52,6 +56,7 @@ class ScannerWidget extends StatefulWidget {
     this.height,
     this.fit = BoxFit.cover,
     this.deviceId,
+    this.retryButton = false,
     required this.scanMode,
   });
 
@@ -66,7 +71,6 @@ class _ScannerWidgetState extends State<ScannerWidget> {
 
   bool _isInitializing = true;
   bool _hasError = false;
-  String _errorMessage = '';
   bool _isDisposed = false;
 
   Timer? _debounceTimer;
@@ -117,9 +121,7 @@ class _ScannerWidgetState extends State<ScannerWidget> {
     setState(() {
       _isInitializing = true;
       _hasError = false;
-      _errorMessage = '';
     });
-
     try {
       await js_util.promiseToFuture<void>(interop.startCamera(
         _videoContainerId,
@@ -162,7 +164,6 @@ class _ScannerWidgetState extends State<ScannerWidget> {
     setState(() {
       _isInitializing = false;
       _hasError = true;
-      _errorMessage = error;
     });
     widget.onError?.call(error);
 
@@ -204,16 +205,18 @@ class _ScannerWidgetState extends State<ScannerWidget> {
                   valueColor: AlwaysStoppedAnimation(
                       Theme.of(context).textTheme.bodySmall?.color),
                 ),
-          if (_hasError)
-            Container(
-              color: Colors.black.withOpacity(0.7),
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                'Erro: $_errorMessage',
-                style: const TextStyle(color: Colors.white),
-                textAlign: TextAlign.center,
-              ),
+          if (_hasError) ...[
+            CameraErrorWidget(
+              error:
+                  'Ocorreu um erro ao iniciar a câmera. ${widget.retryButton ? 'Tente novamente clicando no botão abaixo' : ''}',
+              retryButton: widget.retryButton,
+              retryCallback: () {
+                if (!_isDisposed) {
+                  _startCamera();
+                }
+              },
             ),
+          ]
         ],
       ),
     );

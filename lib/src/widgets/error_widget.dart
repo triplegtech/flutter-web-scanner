@@ -3,7 +3,15 @@ import 'package:flutter/material.dart';
 class CameraErrorWidget extends StatelessWidget {
   final IconData? icon;
   final String error;
-  const CameraErrorWidget({super.key, required this.error, this.icon});
+  final bool retryButton;
+  final void Function()? retryCallback;
+  const CameraErrorWidget({
+    super.key,
+    required this.error,
+    this.icon,
+    this.retryButton = false,
+    this.retryCallback,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +40,22 @@ class CameraErrorWidget extends StatelessWidget {
                       .color!
                       .withOpacity(0.87)),
             ),
+            if (retryButton) ...[
+              const SizedBox(
+                height: 8.0,
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  )
+                ),
+                onPressed: retryCallback,
+                child: const Text('Tentar Novamente'),
+              ),
+            ]
           ],
         ),
       ),

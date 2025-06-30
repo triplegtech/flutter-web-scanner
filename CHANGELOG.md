@@ -1,3 +1,7 @@
+## 1.1.1
+* Fix scanner erro screen
+* Retry button option for loading the scanner
+
 ## 1.1.0
 
 * Fix camera selection for iOS devices for close range scan

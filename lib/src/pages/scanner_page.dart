@@ -17,6 +17,7 @@ class OmniWebScanner extends StatefulWidget {
   final double? height;
   final double? width;
   final BoxFit? fit;
+  final bool? retryButton;
 
   final ScanMode overlay;
 
@@ -29,6 +30,7 @@ class OmniWebScanner extends StatefulWidget {
     this.width,
     this.fit,
     this.overlay = ScanMode.Barcode,
+    this.retryButton = false,
   });
 
   @override
@@ -144,6 +146,7 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
           width: widget.width,
           placeholder: widget.placeholder,
           scanMode: widget.overlay,
+          retryButton: widget.retryButton ?? false,
         );
       }
     } else {
