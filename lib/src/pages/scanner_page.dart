@@ -121,6 +121,8 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
           error: _errorMessage.isNotEmpty
               ? _errorMessage
               : 'Permissão da câmera é necessária',
+          retryButton: widget.retryButton ?? false,
+          retryCallback: _loadCameras,
         );
       } else if (_selectedCamera == null &&
           !_hasCameraPermission &&
