@@ -143,12 +143,17 @@ Future<List<CameraModel>> getCameraDevices() async {
             .toLowerCase()
             .compareTo(b.device.label.toLowerCase()));
       } else if (GetPlatform.isIOS) {
-        scoredDevices.retainWhere(
-          (sd) =>
-              sd.device.label.toLowerCase().contains('ultra wide') ||
-              sd.device.label.toLowerCase().contains('ultra-angular') ||
-              sd.device.label.toLowerCase().contains('ultra angular'),
-        );
+        if (scoredDevices.any((sd) =>
+            sd.device.label.toLowerCase().contains('ultra wide') ||
+            sd.device.label.toLowerCase().contains('ultra-angular') ||
+            sd.device.label.toLowerCase().contains('ultra angular'))) {
+          scoredDevices.retainWhere(
+            (sd) =>
+                sd.device.label.toLowerCase().contains('ultra wide') ||
+                sd.device.label.toLowerCase().contains('ultra-angular') ||
+                sd.device.label.toLowerCase().contains('ultra angular'),
+          );
+        }
       }
 
       // 4. Extract the sorted CameraModel list
