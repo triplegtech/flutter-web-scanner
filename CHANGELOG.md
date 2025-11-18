@@ -1,3 +1,6 @@
+## 1.1.2
+* Fix camera filtering for phones without angular cameras
+
 ## 1.1.1
 * Fix scanner erro screen
 * Retry button option for loading the scanner
