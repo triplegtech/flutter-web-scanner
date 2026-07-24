@@ -1,25 +1,25 @@
 @JS()
 library js_interop;
 
-import 'package:js/js.dart';
-import 'dart:html' as html;
+import 'dart:js_interop';
+import 'package:web/web.dart' as web;
 
 // --- NEW BINDING ---
 @JS('getVideoInputDevices')
-external Future<dynamic> getVideoInputDevices();
+external JSPromise<JSArray<JSObject>> getVideoInputDevices();
 
 // --- MODIFIED BINDING ---
 @JS('startCamera')
-external Future<void> startCamera(
+external JSPromise<JSAny?> startCamera(
   String videoContainerId,
   String viewId,
   String? deviceId,
-  @JS('Function') void Function(String value, String format) onDetect,
-  @JS('Function') void Function(String error) onError,
+  JSFunction onDetect,
+  JSFunction onError,
 );
 
 @JS('stopCamera')
-external Future<void> stopCamera(String viewId);
+external JSPromise<JSAny?> stopCamera(String viewId);
 
 @JS('decodeBarcodeFromImage')
-external Future<dynamic> decodeBarcodeFromImage(html.File imageFile);
+external JSPromise<JSObject?> decodeBarcodeFromImage(web.File imageFile);

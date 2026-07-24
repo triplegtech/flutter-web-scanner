@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:developer';
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 import 'package:flutter/foundation.dart';
-import 'package:js/js_util.dart' as js_util;
+import 'package:web/web.dart' as web;
 import 'package:omni_qrcode_barcode_web_reader/src/helpers/mimetype_helper.dart';
 import '../../js_interop.dart' as interop;
-import 'dart:html' as html if (dart.library.io) 'dart:io';
 import 'package:omni_qrcode_barcode_web_reader/src/models/barcode_result.dart';
 
 Future<BarcodeResult?> decodeBarcodeFromBytes(Uint8List imageData) async {
@@ -14,24 +15,28 @@ Future<BarcodeResult?> decodeBarcodeFromBytes(Uint8List imageData) async {
   }
 
   try {
-    final blob = html.Blob([imageData]);
     String inferredType = inferMimeTypeFromBytes(imageData) ?? 'image/unknown';
-    final imageFile = html.File(
-        [blob],
-        'image_from_bytes.${inferredType.split('/').last}',
-        {'type': inferredType});
+    final blob = web.Blob(
+      [imageData.toJS].toJS,
+      web.BlobPropertyBag(type: inferredType),
+    );
+    final imageFile = web.File(
+      [blob].toJS,
+      'image_from_bytes.${inferredType.split('/').last}',
+      web.FilePropertyBag(type: inferredType),
+    );
 
     if (kDebugMode) {
       print(
           "Decoding barcode from bytes. Inferred type: $inferredType, Size: ${imageData.lengthInBytes}");
     }
 
-    final dynamic result = await js_util.promiseToFuture<dynamic>(
-      interop.decodeBarcodeFromImage(imageFile),
-    );
+    final JSObject? result =
+        await interop.decodeBarcodeFromImage(imageFile).toDart;
 
     if (result != null) {
-      final String? value = js_util.getProperty(result, 'value');
+      final String? value =
+          result.getProperty<JSString?>('value'.toJS)?.toDart;
       if (value != null) {
         return BarcodeResult(value: value, format: 'EAN-13');
       } else {
