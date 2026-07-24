@@ -1,3 +1,6 @@
+## 1.1.3
+* Feat add new qr code and barcode overlay widgets
+
 ## 1.1.2
 * Fix camera filtering for phones without angular cameras
 
