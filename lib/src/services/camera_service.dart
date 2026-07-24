@@ -2,26 +2,22 @@
 // ignore_for_file: avoid_web_libraries_in_flutter, unused_import, avoid_print
 
 import 'dart:async';
-import 'dart:developer';
-import 'dart:io';
-import 'dart:js_util' as js_util;
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 
-import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import 'package:js/js_util.dart'; // For promiseToFuture and dartify
-import 'package:omni_qrcode_barcode_web_reader/src/helpers/language_helper.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/camera_model.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/score_device_model.dart';
 import '../../js_interop.dart' as interop;
-import 'dart:html' as html;
 
 Future<List<CameraModel>> getCameraDevices() async {
   print("Fetching and prioritizing camera devices (EN/PT)...");
   try {
-    final Object jsResult =
-        await js_util.promiseToFuture<Object>(interop.getVideoInputDevices());
+    final JSArray<JSObject> jsArray =
+        await interop.getVideoInputDevices().toDart;
+    final List<JSObject> jsResult = jsArray.toDart;
 
-    if (jsResult is List && jsResult.isNotEmpty) {
+    if (jsResult.isNotEmpty) {
       final List<ScoreDeviceModel> scoredDevices = [];
 
       // --- Define Keywords ---
@@ -47,8 +43,8 @@ Future<List<CameraModel>> getCameraDevices() async {
 
       // 2. Score each device
       for (final item in jsResult) {
-        final deviceId = js_util.getProperty<String?>(item, 'deviceId');
-        final label = js_util.getProperty<String?>(item, 'label') ?? '';
+        final deviceId = item.getProperty<JSString?>('deviceId'.toJS)?.toDart;
+        final label = item.getProperty<JSString?>('label'.toJS)?.toDart ?? '';
 
         if (deviceId != null && deviceId.isNotEmpty) {
           final device = CameraModel(deviceId: deviceId, label: label);

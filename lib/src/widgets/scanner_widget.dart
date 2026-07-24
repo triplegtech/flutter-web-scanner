@@ -7,8 +7,7 @@ import 'dart:ui_web' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:js/js.dart';
-import 'package:js/js_util.dart' as js_util; // For promiseToFuture
+import 'dart:js_interop';
 import 'package:omni_qrcode_barcode_web_reader/omni_qrcode_barcode_web_reader.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/barcode_result.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/widgets/barcode_overlay_widget.dart';
@@ -123,13 +122,13 @@ class _ScannerWidgetState extends State<ScannerWidget> {
       _hasError = false;
     });
     try {
-      await js_util.promiseToFuture<void>(interop.startCamera(
+      await interop.startCamera(
         _videoContainerId,
         _viewId,
         _activeDeviceId,
-        allowInterop(_handleDetection),
-        allowInterop(_handleError),
-      ));
+        _handleDetection.toJS,
+        _handleError.toJS,
+      ).toDart;
       if (!_isDisposed) {
         setState(() {
           _isInitializing = false;
@@ -172,7 +171,7 @@ class _ScannerWidgetState extends State<ScannerWidget> {
 
   Future<void> _stopCameraResources() async {
     try {
-      await js_util.promiseToFuture<void>(interop.stopCamera(_viewId));
+      await interop.stopCamera(_viewId).toDart;
     } catch (e) {
       log("Error stopping camera via JS: $e");
     }

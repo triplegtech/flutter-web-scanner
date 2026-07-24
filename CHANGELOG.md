@@ -1,3 +1,6 @@
+## 1.1.4
+* Fix update js util package and related code
+
 ## 1.1.3
 * Feat add new qr code and barcode overlay widgets
 
