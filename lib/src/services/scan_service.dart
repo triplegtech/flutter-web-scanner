@@ -1,55 +1,85 @@
-import 'dart:async';
-import 'dart:developer';
-import 'dart:js_interop';
-import 'dart:js_interop_unsafe';
-import 'package:flutter/foundation.dart';
-import 'package:web/web.dart' as web;
-import 'package:omni_qrcode_barcode_web_reader/src/helpers/mimetype_helper.dart';
-import '../../js_interop.dart' as interop;
+import 'dart:typed_data';
+
+import 'package:omni_qrcode_barcode_web_reader/src/core/barcode_validator.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/core/mime_sniffer.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_engine.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_mode.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/barcode_result.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/models/scan_validation.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_failure.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/platform/scanner_platform.dart';
 
-Future<BarcodeResult?> decodeBarcodeFromBytes(Uint8List imageData) async {
-  if (!kIsWeb) {
-    throw UnsupportedError(
-        'Barcode decoding from bytes is currently supported only on Web via this package.');
+/// Decodes a barcode or QR code from raw image bytes.
+///
+/// Returns `null` when the image contains no readable code, or when what was
+/// decoded failed validation. Throws [ScannerFailure] when the image itself
+/// could not be processed — unrecognised bytes, or an unavailable engine.
+///
+/// ```dart
+/// final bytes = await pickedFile.readAsBytes();
+/// final result = await decodeBarcodeFromBytes(bytes, mode: ScanMode.barcode);
+/// ```
+///
+/// Two fixes relative to 1.x: the symbology reported is the one the engine
+/// actually found rather than a hardcoded `EAN-13`, and the same check-digit
+/// verification the live scanner uses is applied here too.
+Future<BarcodeResult?> decodeBarcodeFromBytes(
+  Uint8List imageData, {
+  ScanMode mode = ScanMode.all,
+  ScanEngine engine = ScanEngine.zxing,
+  ScanValidation? validation,
+  ScannerPlatform? platform,
+}) async {
+  if (imageData.isEmpty) {
+    throw const ScannerFailure(
+      ScannerFailureKind.unknown,
+      'cannot decode an empty byte list',
+    );
   }
 
-  try {
-    String inferredType = inferMimeTypeFromBytes(imageData) ?? 'image/unknown';
-    final blob = web.Blob(
-      [imageData.toJS].toJS,
-      web.BlobPropertyBag(type: inferredType),
+  // Sniffing beats trusting a filename: the browser refuses to decode a Blob
+  // whose declared type disagrees with its content, and callers routinely hand
+  // over bytes with no type information at all.
+  final mimeType = MimeSniffer.sniff(imageData);
+  if (mimeType == null) {
+    throw const ScannerFailure(
+      ScannerFailureKind.unknown,
+      'the bytes do not match any recognised image format',
     );
-    final imageFile = web.File(
-      [blob].toJS,
-      'image_from_bytes.${inferredType.split('/').last}',
-      web.FilePropertyBag(type: inferredType),
-    );
-
-    if (kDebugMode) {
-      print(
-          "Decoding barcode from bytes. Inferred type: $inferredType, Size: ${imageData.lengthInBytes}");
-    }
-
-    final JSObject? result =
-        await interop.decodeBarcodeFromImage(imageFile).toDart;
-
-    if (result != null) {
-      final String? value =
-          result.getProperty<JSString?>('value'.toJS)?.toDart;
-      if (value != null) {
-        return BarcodeResult(value: value, format: 'EAN-13');
-      } else {
-        throw Exception(
-            "Failed to decode barcode: Invalid result structure from JS.");
-      }
-    } else if (result == null) {
-      return null;
-    } else {
-      throw Exception("Error decoding image: ${result.toString()}");
-    }
-  } catch (e, s) {
-    log("Error in decodeBarcodeFromBytes", error: e, stackTrace: s);
-    rethrow;
   }
+  if (!MimeSniffer.decodableImageTypes.contains(mimeType)) {
+    throw ScannerFailure(
+      ScannerFailureKind.unknown,
+      '$mimeType is not an image format the decoding engines can read',
+    );
+  }
+
+  final scanner = platform ?? ScannerPlatformResolver.instance;
+  await scanner.initialize();
+
+  final decode = await scanner.decodeImage(
+    bytes: imageData,
+    mimeType: mimeType,
+    mode: mode,
+    engine: engine,
+  );
+  if (decode == null) return null;
+
+  // A still image gets exactly one attempt, so confirmation counting is
+  // meaningless here; structural and checksum validation still apply.
+  final rules = (validation ?? ScanValidation.forMode(mode)).copyWith(
+    confirmations: 1,
+  );
+  final outcome = BarcodeValidator.validate(decode.value, decode.format, rules);
+
+  return switch (outcome) {
+    ValidationAccepted(:final checksumVerified) => BarcodeResult(
+        value: decode.value,
+        format: decode.format,
+        rawFormat: decode.rawFormat,
+        checksumVerified: checksumVerified,
+      ),
+    // A payload that fails its own check digit is a misread, not a result.
+    ValidationRejected() => null,
+  };
 }
