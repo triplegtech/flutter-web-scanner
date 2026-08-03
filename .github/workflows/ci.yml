@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A new push to the same branch makes the previous run's answer irrelevant.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Line coverage the package must not fall below.
+  MIN_COVERAGE: 80
+
+jobs:
+  test:
+    name: Format, analyze and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze
+        # --fatal-infos so lint hints cannot accumulate silently between
+        # releases; the package currently analyzes clean at this level.
+        run: flutter analyze --fatal-infos
+
+      - name: Run unit and widget tests
+        run: flutter test --coverage
+
+      - name: Enforce coverage threshold
+        run: |
+          covered=$(grep -c '^DA:[0-9]*,[1-9]' coverage/lcov.info)
+          total=$(grep -c '^DA:' coverage/lcov.info)
+          percent=$(awk "BEGIN { printf \"%.2f\", $covered * 100 / $total }")
+          echo "Line coverage: $percent% ($covered/$total)"
+          awk "BEGIN { exit ($percent < $MIN_COVERAGE) }" || {
+            echo "::error::Coverage $percent% is below the ${MIN_COVERAGE}% minimum"
+            exit 1
+          }
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov
+          path: coverage/lcov.info
+          if-no-files-found: warn
+
+      - name: Validate package layout
+        run: dart pub publish --dry-run
+
+  min-sdk:
+    # The pubspec claims support down to Flutter 3.27 / Dart 3.6; nothing else
+    # verifies that claim, and a newer language feature slips in silently.
+    name: Minimum supported SDK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.0'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run unit and widget tests
+        run: flutter test
+
+  web-build:
+    # `flutter test` runs on the VM, where the conditional import resolves to
+    # the unsupported stub — so the entire js_interop layer is unverified until
+    # something compiles it for the browser. This is that something.
+    name: Example web build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: example
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze the example
+        run: flutter analyze
+
+      - name: Build for the web
+        run: flutter build web --release

@@ -1,119 +1,182 @@
 # Omni QR Code / Barcode Web Reader
 
-[![pub version](https://img.shields.io/pub/v/omni_qrcode_barcode_web_reader.svg)](https://pub.dev/packages/omni_qrcode_barcode_web_reader) <!-- Replace with your actual package name if different -->
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!-- Or your chosen license -->
+[![pub version](https://img.shields.io/pub/v/omni_qrcode_barcode_web_reader.svg)](https://pub.dev/packages/omni_qrcode_barcode_web_reader)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Flutter Platform](https://img.shields.io/badge/Platform-Web-blue)
 
-A Flutter widget for **web applications** to scan QR codes and various barcode formats using the device's camera via JavaScript interoperability.
-
-This package leverages the browser's `getUserMedia` API to access the camera and uses the [ZXing-JS library](https://github.com/zxing-js/library) for decoding barcodes and QR codes.
+Camera-based QR code and barcode scanning for **Flutter Web**, built around two
+problems that make browser scanning harder than it looks: picking the right lens
+on a multi-camera phone, and telling a real read apart from a plausible misread.
 
 ## Features
 
-*   Access camera stream on Flutter Web.
-*   Decode QR codes and common barcode formats (powered by ZXing-JS).
-*   Callback on successful detection (`onDetect`).
-*   Callback for errors (`onError`) like permission denial or camera issues.
-*   Customizable overlay to guide the user:
-    *   Dimmed background outside the scanning area.
-    *   Clear scanning area (cutout).
-    *   Selectable overlay shapes optimized for QR Codes or Barcodes (`ScanMode`).
-*   Optional placeholder widget during camera initialization.
-*   Image File Scanning:
-    *   Decode barcodes and QR codes directly from image files (`Uint8List`).
-    *   Utility function `decodeBarcodeFromBytes` for easy integration:
-    ```dart
-    BarcodeResult? decodeBarcodeFromBytes(Uint8List imageData)
-    ```
+* **Capability-driven camera selection.** Browsers expose every lens of a phone
+  as a separate device with only a localised label to tell them apart. The
+  selector scores devices on measured focus distance and sensor size where the
+  browser reports them, and on label keywords (English, Portuguese, Spanish,
+  French, German, Italian, Dutch) where it does not.
+* **Validated detections.** A decode is checked (check digit, length, format,
+  your own guard) and confirmed across frames before `onDetect` fires, so a
+  half-covered barcode cannot report a structurally valid but wrong payload.
+* **Two engines.** The browser's native `BarcodeDetector` where available, ZXing
+  everywhere else, or `ScanEngine.auto` to pick per browser.
+* **Typed failures.** `ScannerFailure` carries a `ScannerFailureKind`, so a
+  denied permission and a camera held by another tab lead to different UI.
+* **Built-in copy in English, Portuguese and Spanish**, resolved from the app's
+  `Locale`, or replaced wholesale with your own.
+* **Still-image decoding** from `Uint8List` via `decodeBarcodeFromBytes`.
 
-## Parameters
+## Platform support
 
-* onDetect: Callback function whenever the scan works;
+Flutter Web only (`>=3.27.0`, Dart `^3.6.0`). The package relies on
+`navigator.mediaDevices`, `HtmlElementView` and JS interop; on any other target
+every call fails with `ScannerFailureKind.unsupportedPlatform`.
 
-    ```dart
-    void Function(BarcodeResult result) {
+Camera access also requires a **secure context**: HTTPS or `localhost`. Testing
+from a LAN IP surfaces as `ScannerFailureKind.insecureContext`.
 
-    }
-    ```
-* onError: Callback function whenever the scan fails;
-    ```dart
-    void Function?(String? error) {
+## Getting started
 
-    }
-    ```
-* height: Scanner vertical size;
-* width: Scanner horizontal size;
-* placeholder: Widget shown while scanner is initializing;
-* fit: Scanner boxfit property to adjust its content to given size
-* scanMode: Scanner modes to switch custom overlay.
-    ```dart
-        ScanMode.Barcode
-        ScanMode.QrCode
-    ```
-
-
-## Platform Support
-
-*   ✅ **Flutter Web Only**
-*   ✅ **Dart >= 3.6.0**
-
-This package relies heavily on web-specific APIs (`navigator.mediaDevices`, `HtmlElementView`) and JavaScript interoperability, so it will **not** work on mobile or desktop platforms.
-
-## Getting Started
-
-### 1. Installation
-
-Add the package to your `pubspec.yaml`:
+### 1. Install
 
 ```yaml
 dependencies:
-  flutter:
-    sdk: flutter
-  omni_qrcode_barcode_web_reader: ^latest # Check pub.dev for the latest version
-  js: ^0.6.7 # Or latest JS interop package version
-  get: ^4.7.2 # Or higher, check pub.dev for the latest stable version
+  omni_qrcode_barcode_web_reader: ^2.0.0
 ```
 
-### 2. Setup
+### 2. Load a decoding engine
 
-Add the ZXing-JS library script tag inside the <head> section of your web/index.html. Using a CDN is the simplest way:
+Unless you target only browsers that implement `BarcodeDetector`, add the
+ZXing-JS script to `web/index.html`:
 
 ```html
-<!-- web/index.html -->
-<!DOCTYPE html>
-<html>
 <head>
-  <!-- ... other head elements ... -->
-  <title>My Scanner App</title>
-
-  <!-- ADD ZXing-JS Library -->
-  <script type="text/javascript" src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
-
-  <!-- ... other head elements ... -->
+  <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
 </head>
-<body>
-  <!-- Flutter app script will be here -->
-  <script src="main.dart.js" type="application/javascript"></script>
-</body>
-</html>
 ```
 
-> ⚠️ **Important**
- Its required to add this script to your application, otherwise it wont run properly.
+The package's own interop script is bundled as an asset and injected on first
+use — there is nothing to call before `runApp`.
 
-### 3. Implementation
-
-Before you run your flutter application you need to inject the package web dependencies using a spefic function:
+### 3. Scan
 
 ```dart
-import 'package:flutter/material.dart';
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  //DI Function
-  await injectOmniWebReaderWebDependencies();
-  runApp(const MyApp());
-}
+OmniWebScanner(
+  scanMode: ScanMode.barcode,
+  engine: ScanEngine.auto,
+  showRetryButton: true,
+  onDetect: (result) {
+    print('${result.format.name}: ${result.value}');
+  },
+  onError: (failure) {
+    if (failure.kind == ScannerFailureKind.permissionDenied) {
+      // Show your own "allow camera access" prompt.
+    }
+  },
+)
 ```
-> This will insert all needed javascript code 
+
+`onDetect` fires once per confirmed detection, not once per decoded frame.
+
+## Configuration
+
+### `OmniWebScanner`
+
+| Parameter | Purpose |
+|---|---|
+| `onDetect` | Called with each confirmed `BarcodeResult`. |
+| `onError` | Called with a typed `ScannerFailure` when the scanner stops. |
+| `scanMode` | `barcode`, `qrCode` or `all`. Drives overlay shape, format hints, camera and validation defaults. |
+| `engine` | `zxing` (default), `native` or `auto`. |
+| `validation` | Rules a decode must pass. See below. |
+| `cameraPreferences` | How the camera is chosen and configured. |
+| `overlayStyle` / `overlayBuilder` | Restyle or fully replace the framing overlay. |
+| `placeholder` | Shown while the camera starts. |
+| `errorBuilder` | Replaces the built-in error presentation. |
+| `showRetryButton` | Offers a retry on failures where one could succeed. |
+| `localizations` | Your own copy, overriding the app locale. |
+| `controller` | An externally owned `ScannerController`, for driving start/stop or inspecting the ranked camera list. You dispose it. |
+
+### Validation
+
+```dart
+OmniWebScanner(
+  validation: ScanValidation(
+    requireChecksum: true,        // verify EAN/UPC/ITF check digits
+    confirmations: 2,             // identical reads before emitting
+    cooldown: Duration(seconds: 2),
+    minLength: 8,
+    allowedFormats: {BarcodeFormat.ean13},
+    guard: (value, format) => value.startsWith('789'),
+  ),
+  onDetect: handleResult,
+)
+```
+
+Presets: `ScanValidation.none` (emit on first decode), the per-mode default,
+and `ScanValidation.strict` (three confirmations).
+
+### Camera selection
+
+```dart
+OmniWebScanner(
+  cameraPreferences: CameraPreferences(
+    distance: ScanDistance.near,  // near | normal | auto
+    idealWidth: 1920,
+    probeCapabilities: true,      // measure lenses before committing
+    continuousFocus: true,
+    torch: false,
+  ),
+  onDetect: handleResult,
+)
+```
+
+`distance` is the important one. `near` prioritises the smallest reachable
+minimum focus distance — the ultra-wide lens on most phones. `normal`
+prioritises pixels on target. `auto` prefers the main lens but switches when
+probing shows it cannot focus close enough.
+
+Probing briefly opens candidate cameras to read their real capabilities. It
+costs roughly 200–400 ms per camera and makes selection far more accurate than
+any label guess; set `probeCapabilities: false` when startup latency matters
+more.
+
+### Decoding an image file
+
+```dart
+final bytes = await pickedFile.readAsBytes();
+final result = await decodeBarcodeFromBytes(bytes, mode: ScanMode.barcode);
+```
+
+Returns `null` when the image holds no readable code or the read fails
+validation, and throws `ScannerFailure` when the bytes themselves cannot be
+processed. The MIME type is sniffed from the bytes, and the symbology reported
+is the one the engine actually found.
+
+## Migrating from 1.x
+
+| 1.x | 2.x |
+|---|---|
+| `await injectOmniWebReaderWebDependencies()` before `runApp` | Removed; injection is lazy. |
+| `onError: (String? message)` | `onError: (ScannerFailure failure)` — branch on `failure.kind`. |
+| `ScanMode.Barcode` / `ScanMode.QrCode` | `ScanMode.barcode` / `ScanMode.qrCode`, plus `ScanMode.all`. |
+| `fit` | Removed; size the scanner with `width` / `height`. |
+| Overlay tuned through a dozen widget parameters | `ScannerOverlayStyle`, or `overlayBuilder` for full control. |
+| `js` and `get` dependencies in your pubspec | Neither is needed. |
+| `onDetect` on every decoded frame | Once per confirmed, validated detection. |
+| Hardcoded `EAN-13` on file decodes | The symbology the engine reported. |
+| Portuguese-only copy | Resolved from the app `Locale`; override with `localizations`. |
+
+## Development
+
+```bash
+flutter pub get
+dart format .
+flutter analyze --fatal-infos
+flutter test --coverage
+
+cd example && flutter run -d chrome   # runnable demo
+```
+
+CI runs format, analysis, the full test suite with an 80% line-coverage floor,
+the same suite on the minimum supported SDK, and a web build of the example.

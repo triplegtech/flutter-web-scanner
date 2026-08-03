@@ -4,92 +4,99 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-`omni_qrcode_barcode_web_reader` — a **Flutter Web-only** pub package that scans QR codes and barcodes from the device camera (and from image bytes) by bridging Dart to the ZXing-JS browser library. `pubspec.yaml` declares `platforms: web:`; nothing here works on mobile/desktop.
+`omni_qrcode_barcode_web_reader` — a **Flutter Web-only** pub package that scans QR codes and barcodes from the device camera (and from image bytes) by bridging Dart to the browser's `BarcodeDetector` or the ZXing-JS library. `pubspec.yaml` declares `platforms: web:`; nothing here works on mobile or desktop.
 
 ## Commands
 
 ```bash
 flutter pub get
-flutter analyze            # the only gate CI runs before publishing
-dart pub publish --dry-run # validates package layout/version before tagging
+dart format .                       # CI gates on --set-exit-if-changed
+flutter analyze --fatal-infos       # currently clean at this level
+flutter test                        # 225 tests, VM only
+flutter test --coverage             # CI enforces an 80% line floor
+flutter test test/core/camera_selector_test.dart          # single file
+flutter test --plain-name 'rank prefers the ultra-wide'   # single test
+
+cd example && flutter run -d chrome  # runnable demo
+cd example && flutter build web      # the only thing that compiles the interop layer
 ```
 
-There are no tests (`test/` does not exist) and no runnable example app — `example/main.dart` contains only an `ExamplePage` widget with no `main()`. To exercise changes manually you must consume the package from a separate Flutter Web app (see "Consumer setup" below).
+### CI
 
-### Publishing
+`.github/workflows/ci.yml` runs on push to `main`, on PRs, and manually: format + analyze + test with coverage + `pub publish --dry-run`; the same suite on the minimum supported SDK (Flutter 3.27.0); and a web build of `example/`.
 
-`.github/workflows/dart.yml` triggers on a `v*.*.*` tag: `flutter pub get` → `flutter analyze` → `dart pub publish --force` → GitHub release. Before tagging, bump `version:` in `pubspec.yaml` and add a matching entry at the **top** of `CHANGELOG.md`.
+`.github/workflows/dart.yml` publishes on a `v*.*.*` tag. It verifies the tag matches `version:` in `pubspec.yaml` and that `CHANGELOG.md` mentions it, then analyzes, tests, publishes, and cuts a GitHub release. Bump `version:` and add a `CHANGELOG.md` entry at the **top** before tagging.
 
 ## Architecture
 
-Three layers, and a change to the scanning behavior usually touches all three:
+Five layers. A change to scanning behaviour usually touches the top two only.
 
-1. **Dart widgets** (`lib/src/pages/`, `lib/src/widgets/`) — Flutter UI and lifecycle.
-2. **JS interop bindings** (`lib/js_interop.dart`) — `@JS('name') external` declarations that bind to **global** functions on `window`.
-3. **`assets/js/scanner.js`** — the actual browser code. Top-level `async function`s here become the `window` globals that layer 2 binds to.
+1. **Widget** (`lib/src/widgets/omni_web_scanner.dart`) — the public surface. Owns nothing but presentation and the controller's lifetime.
+2. **Controller** (`lib/src/controllers/`) — camera choice, session lifecycle, the decode→validation pipeline. Holds no `BuildContext` and imports nothing browser-specific.
+3. **Core logic** (`lib/src/core/`) — pure, deterministic, no I/O: `CameraSelector`, `DetectionStabilizer`, `BarcodeValidator`, `MimeSniffer`. This is where the interesting decisions live and where most tests point.
+4. **Platform seam** (`lib/src/platform/scanner_platform.dart`) — the `ScannerPlatform` interface plus a conditional import: `scanner_platform_web.dart` on web, `scanner_platform_stub.dart` everywhere else.
+5. **`assets/js/scanner.js`** — the browser code, shipped as a Flutter asset and injected lazily on first use.
 
-### The JS injection mechanism (non-obvious)
+### The platform seam is load-bearing
 
-`scanner.js` is shipped as a **Flutter asset**, not as a script tag. The consuming app must call:
+`dart:js_interop`, `package:web` and `dart:ui_web` do not compile on the Dart VM. Without this seam `flutter test` could not even load the package. Two consequences:
 
-```dart
-await injectOmniWebReaderWebDependencies(); // lib/omni_qrcode_barcode_web_reader.dart
-```
+- **`flutter test` never exercises `scanner_platform_web.dart`.** Tests inject `FakeScannerPlatform` (`test/fakes/`), either as a constructor argument or through `ScannerPlatformResolver.instance`. The web implementation is only verified by `cd example && flutter build web`, which CI runs.
+- **Adding a JS function requires two edits**: an entry in the `window.omniScanner` object inside `assets/js/scanner.js` *and* a matching `external` binding in `lib/src/platform/scanner_interop.dart`.
 
-which `rootBundle.loadString`s the asset and appends it as an inline `<script id="omni-web-scanner-interop-script">` to `<head>` (idempotent via the id check).
+Every interop call exchanges **JSON strings**, not structured objects. That keeps `scanner_interop.dart` a flat list of primitives and pushes all field mapping into `scanner_codec.dart`, which is testable without a browser — so parsing changes belong there, not in the interop file.
 
-Consequences to keep in mind:
-- **Adding a JS function requires two edits**: a top-level function in `assets/js/scanner.js` *and* a matching `@JS('fnName') external` in `lib/js_interop.dart`.
-- `scanner.js` starts with `const ZXing = window.ZXing`, captured **at injection time**. ZXing-JS itself is *not* bundled — the consuming app must load it from CDN in `web/index.html` before Flutter starts. If it's missing, every call fails with "ZXing library not loaded".
-- `window.scannerState` is a **single global object**, so only one scanner can run at a time even though `startCamera`/`stopCamera` take a `viewId`.
+The script is injected on first `initialize()`, keyed by an element id so it is idempotent, with the in-flight injection shared so concurrent callers cannot append duplicate `<script>` tags. ZXing-JS itself is *not* bundled — the host app loads it from a CDN in `web/index.html`, unless it opts into `ScanEngine.native`.
 
-### Camera selection heuristic (`lib/src/services/camera_service.dart`)
+### Camera selection (`lib/src/core/camera_selector.dart`)
 
-The most intricate logic in the package, and the source of most of the CHANGELOG history. It exists because browsers expose multi-lens phone cameras as separate `videoinput` devices with only free-text labels, and picking the wrong lens breaks close-range barcode focus.
+The most intricate logic in the package and the source of most of the CHANGELOG history. It exists because browsers expose each lens of a multi-camera phone as a separate `videoinput` device, and picking the wrong lens breaks close-range focus.
 
-- Devices are scored from `label` keywords in **both English and Portuguese**. **Lower score = higher priority.**
-- Front cameras score `999` and are **dropped entirely** from the returned list.
-- Back cameras start at `10`; a special-lens keyword (wide/tele/depth/macro) adds `+5`. Generic/unlabeled devices get `50`/`55`. A sole device gets `5`.
-- After sorting by score, platform-specific overrides apply via `GetPlatform` (this is the **only** reason `get` is a dependency): **Android** re-sorts alphabetically by label; **iOS** hard-filters to `ultra wide` / `ultra angular` devices when any exist.
-- `OmniWebScanner` always takes `devices.first`; there is no camera picker UI.
+`CameraSelector.rank` blends three signal tiers, in descending order of trust:
 
-Any change here needs real-device verification across iOS/Android browsers — the scoring cannot be validated from the code alone.
+1. **Measured capabilities** — `focusDistance`, frame size, focus modes, read from a live `MediaStreamTrack`. Dominates when present.
+2. **Reported facing mode** from `InputDeviceInfo.getCapabilities()`. Authoritative but Chromium-only.
+3. **Label keywords**, in seven languages. A last resort: labels are localised, vendor-specific and empty before permission is granted.
 
-### Widget flow
+Higher score wins (the inverse of 1.x). `rank` never returns fewer cameras than it was given — unsuitable ones sink instead of being dropped, because a laptop whose only camera is front-facing must still scan. There are no platform-specific branches; `ScanDistance` states the caller's intent instead.
 
-`OmniWebScanner` (`src/pages/scanner_page.dart`) owns camera enumeration, permission state, and error/loading branches. Once a camera is chosen it renders `ScannerWidget` keyed on `deviceId`, which:
+`ScannerController._probeCandidates` opens the top candidates briefly to measure them, then re-ranks. Probing is best-effort: any failure is absorbed, since it must never stop the scanner from starting.
 
-- registers a unique platform view (`ui.platformViewRegistry.registerViewFactory`) with a `viewId` derived from `microsecondsSinceEpoch`, backed by a plain `<div>`;
-- starts the camera in a `postFrameCallback` — the JS side polls with `waitForElement` (5s timeout) because Flutter mounts the platform view asynchronously;
-- **debounces repeated detections**: the same value within 1 second is swallowed before `onDetect` fires;
-- restarts the camera in `didUpdateWidget` when `deviceId` changes, and calls `stopCamera` in `dispose`.
+The scoring cannot be validated from code alone — changes here need real-device verification across iOS and Android browsers. `CameraCandidate.reasons` carries a human-readable score breakdown for exactly that.
 
-Overlays (`BarcodeOverlayWidget` / `QrCodeOverlayWidget`, selected by `ScanMode`) are pure Flutter, stacked over the `HtmlElementView`. They share `ScannerOverlayShape` (a `ShapeBorder` that punches a cutout in a dimmed layer) and `ScannerLinePainter` (animated sweep line). Overlay sizing is hardcoded, not parameterized.
+### Detection pipeline (`lib/src/core/detection_stabilizer.dart`)
 
-### File-based decoding
+A live camera feeds the decoder tens of frames per second, and engines will happily return a structurally valid but wrong payload from a half-covered 1D symbol. Every raw decode goes through `DetectionStabilizer.offer`, which validates, counts confirmations within a window, and applies a per-value cooldown before `onDetect` fires. It owns no timers and reads time through an injectable `clock`, so it is fully testable without waiting.
 
-`decodeBarcodeFromBytes` (`src/services/scan_service.dart`) sniffs the MIME type from magic bytes (`mimetype_helper.dart`), wraps the data in a `web.File`, and hands it to JS `decodeBarcodeFromImage`. Note the JS side returns only `{ value }`, so the Dart side **hardcodes `format: 'EAN-13'`** regardless of the real format.
+`ScannerController.start()` resets the stabiliser, so a code read before a restart cannot suppress the same code read after it.
 
-## Conventions and known quirks
+### Lifecycle
 
-- **Two interop styles coexist.** `lib/js_interop.dart` and `scan_service.dart` use modern `dart:js_interop` + `package:web`; `scanner_widget.dart`, the injection function, and `language_helper.dart` use legacy `dart:html`. `analysis_options.yaml` silences `avoid_web_libraries_in_flutter` and `deprecated_member_use` to allow this — don't "fix" the lints, and match the style already in the file you're editing.
-- **User-facing strings are hardcoded Portuguese (pt-BR)** in `scanner_page.dart`, `error_widget.dart`, and `scanner_widget.dart`. `src/helpers/language_helper.dart` (`isDeviceLanguagePortuguese`) exists but is currently unused.
-- **Public API is only what `lib/omni_qrcode_barcode_web_reader.dart` exports**: `OmniWebScanner`, `ScanMode`, `decodeBarcodeFromBytes`, plus `injectOmniWebReaderWebDependencies`. Everything under `src/` is private to consumers, so moving files there is non-breaking but changing those four is.
-- The JS layer logs verbosely with a `[JS]` prefix and `camera_service.dart` uses bare `print` (with `avoid_print` ignored at the top of the file) — this is intentional, since the camera heuristic is debugged from browser consoles on real devices.
+`ScannerState` is a sealed hierarchy (`Idle`/`Initializing`/`Ready`/`Failed`), so the widget's `switch` is exhaustive. `ScannerController.start()` is guarded by a generation counter: a start superseded by a newer one abandons its work and stops any session it had already opened, rather than leaking the camera track.
 
-## Consumer setup (what the package requires of host apps)
+The preview stays mounted in every state — unmounting the platform view would destroy the container the interop layer is waiting on.
+
+## Conventions
+
+- **Comments explain *why*, never *what*.** The existing comments carry the browser quirks and hardware trade-offs that justify each decision; match that.
+- **Tests are behavioural and named as sentences.** Fakes over mocks — the interesting behaviour is the *sequence* of interop calls. New behaviour needs a test; the 80% coverage floor is enforced in CI.
+- **No `print`.** The verbose `[JS]` logging lives in `scanner.js`, where a browser console on someone else's phone is the only instrument available.
+- **User-facing copy goes in `lib/src/l10n/scanner_localizations.dart`**, never inline in a widget. Every `ScannerFailureKind` needs copy in all three bundled languages, and a test asserts they are distinct.
+- **New failure modes get a `ScannerFailureKind`**, not a free-form string. Callers branch on the kind, and `isRetryable` decides whether a retry button appears.
+- **Public API is only what `lib/omni_qrcode_barcode_web_reader.dart` exports.** Everything under `src/` is private to consumers, so moving files is non-breaking; changing an export is not.
+
+## Consumer setup
 
 ```html
-<!-- web/index.html, inside <head> -->
-<script type="text/javascript" src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
+<!-- web/index.html, inside <head> — not needed with ScanEngine.native -->
+<script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
 ```
 
 ```dart
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await injectOmniWebReaderWebDependencies();
-  runApp(const MyApp());
-}
+OmniWebScanner(
+  onDetect: (result) => print('${result.format.name}: ${result.value}'),
+  onError: (failure) => print(failure.kind.name),
+)
 ```
 
-Camera access also requires a secure context (HTTPS or `localhost`).
+Camera access requires a secure context (HTTPS or `localhost`); a LAN IP surfaces as `ScannerFailureKind.insecureContext`.
