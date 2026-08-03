@@ -22,6 +22,9 @@ env:
 jobs:
   test:
     name: Format, analyze and test
+    # Quality gates belong to the pull request: they run when it is opened and
+    # on every push to it, so what gets merged is what was verified.
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -72,6 +75,7 @@ jobs:
     # else verifies that claim, since the `test` job tracks stable and would
     # keep passing as the floor drifts out from under it.
     name: Minimum supported SDK
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -96,6 +100,7 @@ jobs:
     # the unsupported stub — so the entire js_interop layer is unverified until
     # something compiles it for the browser. This is that something.
     name: Example web build
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -118,11 +123,17 @@ jobs:
         run: flutter build web --release
 
   publish:
-    # Releasing is a consequence of merging, not of tagging: this runs on every
-    # push to main and publishes only when pubspec.yaml carries a version
-    # pub.dev does not have yet. Merges that change no version are a no-op.
+    # Releasing is a consequence of merging, not of tagging: this runs when a
+    # PR lands on main and publishes only when pubspec.yaml carries a version
+    # pub.dev does not have yet. Merges that change no version cost one short
+    # job and publish nothing.
+    #
+    # It deliberately does not `needs:` the jobs above — those are skipped on a
+    # push, and a dependency on a skipped job would skip this one too. Their
+    # guarantee comes from branch protection (the PR cannot merge red); the
+    # analyze and test steps below are the second line of defence, so a direct
+    # push to main still cannot publish a broken release.
     name: Publish to pub.dev
-    needs: [test, min-sdk, web-build]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -162,6 +173,17 @@ jobs:
       - name: Install dependencies
         if: steps.version.outputs.needed == 'true'
         run: flutter pub get
+
+      - name: Analyze
+        if: steps.version.outputs.needed == 'true'
+        run: flutter analyze --fatal-infos
+
+      - name: Run unit and widget tests
+        # Re-run at the merge commit rather than trusting the PR's green tick:
+        # another PR may have landed in between, and this is the exact tree
+        # that goes to pub.dev.
+        if: steps.version.outputs.needed == 'true'
+        run: flutter test
 
       - name: Decode pub credentials
         if: steps.version.outputs.needed == 'true'

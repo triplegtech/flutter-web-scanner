@@ -178,9 +178,10 @@ flutter test --coverage
 cd example && flutter run -d chrome   # runnable demo
 ```
 
-CI runs format, analysis, the full test suite with an 80% line-coverage floor,
-the same suite on the minimum supported SDK, and a web build of the example.
+Pull requests run format, analysis, the full test suite with an 80%
+line-coverage floor, the same suite on the minimum supported SDK, and a web
+build of the example.
 
 Releases are automatic: merging a version bump in `pubspec.yaml` into `main`
-publishes to pub.dev once those checks pass, then tags the commit. Merges that
+re-runs the tests and publishes to pub.dev, then tags the commit. Merges that
 do not change the version publish nothing.

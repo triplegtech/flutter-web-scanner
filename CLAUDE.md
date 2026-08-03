@@ -23,9 +23,13 @@ cd example && flutter build web      # the only thing that compiles the interop 
 
 ### CI
 
-`.github/workflows/ci.yml` is the only workflow. On PRs and manual runs it does three things in parallel: format + analyze + test with coverage + `pub publish --dry-run`; the same suite on the minimum supported SDK (Flutter 3.41.4); and a web build of `example/`.
+`.github/workflows/ci.yml` is the only workflow, and its two halves never run together.
 
-**Releasing is a consequence of merging, not of tagging.** On a push to `main`, a fourth job runs after those three pass, compares `version:` in `pubspec.yaml` against the pub.dev API, and publishes only when that version does not exist there yet — so a merge that changes no version is a no-op rather than a failure. After publishing it creates the `v<version>` tag and a GitHub release as a *record*; that tag is pushed with `GITHUB_TOKEN`, which by design does not start another workflow run.
+**On a pull request** (and on manual dispatch), three jobs run in parallel: format + analyze + test with coverage + `pub publish --dry-run`; the same suite on the minimum supported SDK (Flutter 3.41.4); and a web build of `example/`. They re-run on every push to the PR, so what merges is what was verified.
+
+**On a push to `main`** — i.e. when a PR lands — only the `publish` job runs. It compares `version:` in `pubspec.yaml` against the pub.dev API and does nothing unless that version is new, so ordinary merges cost one short job. When it *is* new it checks the CHANGELOG, re-runs analyze and the tests at the merge commit, publishes, then creates the `v<version>` tag and a GitHub release as a *record*. That tag is pushed with `GITHUB_TOKEN`, which by design does not start another workflow run.
+
+`publish` deliberately has no `needs:` on the three PR jobs — they are skipped on a push, and depending on a skipped job would skip `publish` too. **Branch protection on `main` is what makes the PR gates binding**; the analyze and test steps inside `publish` are the second line of defence.
 
 To cut a release: bump `version:` in `pubspec.yaml`, add a matching entry at the **top** of `CHANGELOG.md` (the job refuses to publish without one), and merge to `main`. Do not create tags by hand.
 
