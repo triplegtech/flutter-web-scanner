@@ -6,10 +6,14 @@ on:
   pull_request:
   workflow_dispatch:
 
-# A new push to the same branch makes the previous run's answer irrelevant.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # A new push to a PR makes the previous run's answer irrelevant. A run on
+  # main may be mid-publish, so those queue instead of being cancelled.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: write
 
 env:
   # Line coverage the package must not fall below.
@@ -64,8 +68,9 @@ jobs:
         run: dart pub publish --dry-run
 
   min-sdk:
-    # The pubspec claims support down to Flutter 3.27 / Dart 3.6; nothing else
-    # verifies that claim, and a newer language feature slips in silently.
+    # The pubspec claims support down to Flutter 3.41.4 / Dart 3.11; nothing
+    # else verifies that claim, since the `test` job tracks stable and would
+    # keep passing as the floor drifts out from under it.
     name: Minimum supported SDK
     runs-on: ubuntu-latest
     steps:
@@ -73,7 +78,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.27.0'
+          flutter-version: '3.41.4'
           channel: stable
           cache: true
 
@@ -111,3 +116,79 @@ jobs:
 
       - name: Build for the web
         run: flutter build web --release
+
+  publish:
+    # Releasing is a consequence of merging, not of tagging: this runs on every
+    # push to main and publishes only when pubspec.yaml carries a version
+    # pub.dev does not have yet. Merges that change no version are a no-op.
+    name: Publish to pub.dev
+    needs: [test, min-sdk, web-build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Decide whether this version needs publishing
+        id: version
+        run: |
+          name=$(grep '^name:' pubspec.yaml | awk '{print $2}')
+          version=$(grep '^version:' pubspec.yaml | awk '{print $2}')
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          if curl -sf "https://pub.dev/api/packages/$name" \
+              | jq -e --arg v "$version" '.versions[] | select(.version == $v)' \
+              > /dev/null; then
+            echo "$name $version is already on pub.dev; nothing to release"
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "$name $version is new; releasing"
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify the CHANGELOG documents this version
+        if: steps.version.outputs.needed == 'true'
+        run: |
+          if ! grep -q "${{ steps.version.outputs.version }}" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no entry for ${{ steps.version.outputs.version }}"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        if: steps.version.outputs.needed == 'true'
+        run: flutter pub get
+
+      - name: Decode pub credentials
+        if: steps.version.outputs.needed == 'true'
+        run: |
+          mkdir -p "$HOME/.config/dart"
+          echo "${{ secrets.PUB_CREDENTIAL_JSON }}" > "$HOME/.config/dart/pub-credentials.json"
+
+      - name: Check publish warnings
+        if: steps.version.outputs.needed == 'true'
+        run: dart pub publish --dry-run
+
+      - name: Publish package
+        if: steps.version.outputs.needed == 'true'
+        run: dart pub publish --force
+
+      - name: Tag the released commit
+        # A record of what was published, not a trigger: a tag pushed with
+        # GITHUB_TOKEN deliberately does not start another workflow run.
+        if: steps.version.outputs.needed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "v$VERSION" -m "v$VERSION"
+          git push origin "v$VERSION"
+          gh release create "v$VERSION" \
+            --title "Release v$VERSION" \
+            --notes "See [CHANGELOG.md](CHANGELOG.md) for details."

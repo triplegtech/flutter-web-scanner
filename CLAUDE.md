@@ -23,9 +23,11 @@ cd example && flutter build web      # the only thing that compiles the interop 
 
 ### CI
 
-`.github/workflows/ci.yml` runs on push to `main`, on PRs, and manually: format + analyze + test with coverage + `pub publish --dry-run`; the same suite on the minimum supported SDK (Flutter 3.27.0); and a web build of `example/`.
+`.github/workflows/ci.yml` is the only workflow. On PRs and manual runs it does three things in parallel: format + analyze + test with coverage + `pub publish --dry-run`; the same suite on the minimum supported SDK (Flutter 3.41.4); and a web build of `example/`.
 
-`.github/workflows/dart.yml` publishes on a `v*.*.*` tag. It verifies the tag matches `version:` in `pubspec.yaml` and that `CHANGELOG.md` mentions it, then analyzes, tests, publishes, and cuts a GitHub release. Bump `version:` and add a `CHANGELOG.md` entry at the **top** before tagging.
+**Releasing is a consequence of merging, not of tagging.** On a push to `main`, a fourth job runs after those three pass, compares `version:` in `pubspec.yaml` against the pub.dev API, and publishes only when that version does not exist there yet — so a merge that changes no version is a no-op rather than a failure. After publishing it creates the `v<version>` tag and a GitHub release as a *record*; that tag is pushed with `GITHUB_TOKEN`, which by design does not start another workflow run.
+
+To cut a release: bump `version:` in `pubspec.yaml`, add a matching entry at the **top** of `CHANGELOG.md` (the job refuses to publish without one), and merge to `main`. Do not create tags by hand.
 
 ## Architecture
 

@@ -4,6 +4,8 @@ A rewrite of the scanning pipeline. See the migration table in the README.
 
 ### Breaking
 
+* The minimum supported SDK is now Flutter 3.41.4 / Dart 3.11, up from
+  Flutter 3.27 / Dart 3.6.
 * `injectOmniWebReaderWebDependencies()` is gone — the interop script is
   injected lazily on first use, so there is nothing to call before `runApp`.
 * `onError` now receives a typed `ScannerFailure` (with a `ScannerFailureKind`)
@@ -64,7 +66,9 @@ A rewrite of the scanning pipeline. See the migration table in the README.
 * 225 unit and widget tests, at 89% line coverage.
 * CI runs formatting, analysis, the test suite with an 80% coverage floor, the
   suite again on the minimum supported SDK, and a web build of the example.
-* Publishing is gated on the tests, and on the tag matching `pubspec.yaml`.
+* Publishing happens on merge to `main` when `pubspec.yaml` carries a version
+  pub.dev does not have yet, gated on those checks; the release tag is created
+  afterwards as a record.
 * `example/` is now a runnable Flutter Web app.
 
 ## 1.1.4

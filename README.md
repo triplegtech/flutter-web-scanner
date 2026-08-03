@@ -28,7 +28,7 @@ on a multi-camera phone, and telling a real read apart from a plausible misread.
 
 ## Platform support
 
-Flutter Web only (`>=3.27.0`, Dart `^3.6.0`). The package relies on
+Flutter Web only (`>=3.41.4`, Dart `^3.11.0`). The package relies on
 `navigator.mediaDevices`, `HtmlElementView` and JS interop; on any other target
 every call fails with `ScannerFailureKind.unsupportedPlatform`.
 
@@ -180,3 +180,7 @@ cd example && flutter run -d chrome   # runnable demo
 
 CI runs format, analysis, the full test suite with an 80% line-coverage floor,
 the same suite on the minimum supported SDK, and a web build of the example.
+
+Releases are automatic: merging a version bump in `pubspec.yaml` into `main`
+publishes to pub.dev once those checks pass, then tags the commit. Merges that
+do not change the version publish nothing.
