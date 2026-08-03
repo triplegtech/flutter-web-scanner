@@ -141,6 +141,10 @@ jobs:
     name: Publish to pub.dev
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # `dart pub publish` answers unusable credentials with an interactive OAuth
+    # prompt, which on a runner with no browser waits until the job is killed.
+    # A cap turns a six-hour hang into a fast, visible failure.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -192,9 +196,25 @@ jobs:
 
       - name: Decode pub credentials
         if: steps.version.outputs.needed == 'true'
+        env:
+          # Read through the environment, never interpolated into the script.
+          # `echo "${{ secrets.X }}"` splices the secret into the shell *source*
+          # before bash parses it, so every double quote in the JSON closes the
+          # string: the file lands with its quotes stripped and pub cannot read
+          # it. An env var is expanded at runtime, after parsing, so the value
+          # survives intact.
+          PUB_CREDENTIALS: ${{ secrets.PUB_CREDENTIAL_JSON }}
         run: |
           mkdir -p "$HOME/.config/dart"
-          echo "${{ secrets.PUB_CREDENTIAL_JSON }}" > "$HOME/.config/dart/pub-credentials.json"
+          printf '%s' "$PUB_CREDENTIALS" > "$HOME/.config/dart/pub-credentials.json"
+
+          # Fail here rather than in `dart pub publish`, which reacts to broken
+          # credentials by opening a login prompt instead of exiting non-zero.
+          if ! jq -e '.accessToken and .refreshToken' \
+              "$HOME/.config/dart/pub-credentials.json" > /dev/null 2>&1; then
+            echo "::error::PUB_CREDENTIAL_JSON is not a valid pub-credentials.json"
+            exit 1
+          fi
 
       - name: Check publish warnings
         if: steps.version.outputs.needed == 'true'
