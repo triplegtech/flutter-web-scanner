@@ -1,0 +1,187 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:omni_qrcode_barcode_web_reader/omni_qrcode_barcode_web_reader.dart';
+
+void main() {
+  group('CameraPreferences', () {
+    test('asks for a close-focusing lens only for linear symbologies', () {
+      // A 1D barcode is presented close and needs horizontal resolution; a QR
+      // code is read at arm's length, where the ultra-wide's distortion costs
+      // more than its close focus gains.
+      expect(
+        CameraPreferences.forMode(ScanMode.barcode).distance,
+        ScanDistance.near,
+      );
+      expect(
+        CameraPreferences.forMode(ScanMode.qrCode).distance,
+        ScanDistance.auto,
+      );
+    });
+
+    test('requests a resolution high enough to resolve bar widths', () {
+      // Browsers hand back 640x480 unless asked otherwise, at which an EAN-13
+      // held at arm's length lands on too few pixels to decode.
+      const preferences = CameraPreferences();
+
+      expect(preferences.idealWidth, greaterThanOrEqualTo(1280));
+      expect(preferences.idealHeight, greaterThanOrEqualTo(720));
+    });
+
+    test('probes by default, but with a cap on how many cameras', () {
+      const preferences = CameraPreferences();
+
+      expect(preferences.probeCapabilities, isTrue);
+      expect(preferences.maxProbedCameras, greaterThan(0));
+    });
+
+    test('copyWith replaces only what it is given', () {
+      const preferences = CameraPreferences(distance: ScanDistance.near);
+      final zoomed = preferences.copyWith(zoom: 2, torch: true);
+
+      expect(zoomed.zoom, 2);
+      expect(zoomed.torch, isTrue);
+      expect(zoomed.distance, ScanDistance.near);
+      expect(zoomed.idealWidth, preferences.idealWidth);
+    });
+
+    test('rejects settings that cannot describe a camera', () {
+      expect(() => CameraPreferences(idealWidth: 0), throwsAssertionError);
+      expect(
+          () => CameraPreferences(maxProbedCameras: -1), throwsAssertionError);
+      // Below 1.0 is not zoom, it is a wider field of view, which no browser
+      // exposes this way.
+      expect(() => CameraPreferences(zoom: 0.5), throwsAssertionError);
+    });
+  });
+
+  group('ScanValidation', () {
+    test('confirms twice for 1D and once for 2D', () {
+      expect(ScanValidation.forMode(ScanMode.barcode).confirmations, 2);
+      expect(ScanValidation.forMode(ScanMode.all).confirmations, 2);
+      // Reed-Solomon error correction already makes a single QR read
+      // trustworthy; a second confirmation would only add latency.
+      expect(ScanValidation.forMode(ScanMode.qrCode).confirmations, 1);
+    });
+
+    test('presets trade latency against trust in the documented direction', () {
+      expect(ScanValidation.none.confirmations, 1);
+      expect(ScanValidation.none.requireChecksum, isFalse);
+      expect(ScanValidation.strict.confirmations, 3);
+      expect(ScanValidation.strict.requireChecksum, isTrue);
+    });
+
+    test('allowsFormat accepts everything when unrestricted', () {
+      const unrestricted = ScanValidation();
+
+      expect(unrestricted.allowsFormat(BarcodeFormat.qrCode), isTrue);
+      expect(unrestricted.allowsFormat(BarcodeFormat.ean13), isTrue);
+    });
+
+    test('allowsFormat enforces an explicit set', () {
+      const restricted = ScanValidation(
+        allowedFormats: {BarcodeFormat.ean13, BarcodeFormat.ean8},
+      );
+
+      expect(restricted.allowsFormat(BarcodeFormat.ean8), isTrue);
+      expect(restricted.allowsFormat(BarcodeFormat.qrCode), isFalse);
+    });
+
+    test('rejects a configuration that could never emit', () {
+      expect(() => ScanValidation(confirmations: 0), throwsAssertionError);
+      expect(() => ScanValidation(minLength: -1), throwsAssertionError);
+    });
+
+    test('copyWith preserves the guard it was not asked to change', () {
+      bool guard(String value, BarcodeFormat format) => true;
+      final validation = ScanValidation(guard: guard).copyWith(minLength: 4);
+
+      expect(validation.guard, same(guard));
+      expect(validation.minLength, 4);
+    });
+  });
+
+  group('ScannerOverlayStyle', () {
+    test('frames a linear barcode in a wide, short window', () {
+      final linear = ScannerOverlayStyle.forMode(ScanMode.barcode);
+      final square = ScannerOverlayStyle.forMode(ScanMode.qrCode);
+
+      expect(linear.cutOutHeight, lessThan(square.cutOutHeight));
+      expect(linear.cutOutWidthFactor, lessThan(square.cutOutWidthFactor));
+    });
+
+    test('animates the scan line by default', () {
+      const style = ScannerOverlayStyle();
+
+      expect(style.showScanLine, isTrue);
+      expect(style.scanLineDuration, greaterThan(Duration.zero));
+    });
+
+    test('copyWith keeps the rest of the style intact', () {
+      const style = ScannerOverlayStyle();
+      final quiet = style.copyWith(showScanLine: false, cutOutHeight: 200);
+
+      expect(quiet.showScanLine, isFalse);
+      expect(quiet.cutOutHeight, 200);
+      expect(quiet.borderColor, style.borderColor);
+      expect(quiet.overlayColor, style.overlayColor);
+    });
+
+    test('rejects a cut-out that cannot be drawn', () {
+      expect(
+        () => ScannerOverlayStyle(cutOutWidthFactor: 0),
+        throwsAssertionError,
+      );
+      expect(
+        () => ScannerOverlayStyle(cutOutWidthFactor: 1.5),
+        throwsAssertionError,
+      );
+      expect(() => ScannerOverlayStyle(cutOutHeight: 0), throwsAssertionError);
+    });
+  });
+
+  group('BarcodeResult', () {
+    test('compares on payload and symbology, not on how it was confirmed', () {
+      const first = BarcodeResult(
+        value: '5901234123457',
+        format: BarcodeFormat.ean13,
+        confirmations: 2,
+      );
+      const second = BarcodeResult(
+        value: '5901234123457',
+        format: BarcodeFormat.ean13,
+        confirmations: 3,
+        checksumVerified: true,
+      );
+
+      expect(first, second);
+      expect(first.hashCode, second.hashCode);
+    });
+
+    test('differs when the same text arrives from another symbology', () {
+      const asEan = BarcodeResult(
+        value: '5901234123457',
+        format: BarcodeFormat.ean13,
+      );
+      const asQr = BarcodeResult(
+        value: '5901234123457',
+        format: BarcodeFormat.qrCode,
+      );
+
+      expect(asEan, isNot(asQr));
+    });
+
+    test('copyWith carries the untouched fields forward', () {
+      const result = BarcodeResult(
+        value: '5901234123457',
+        format: BarcodeFormat.ean13,
+        rawFormat: 'EAN_13',
+        checksumVerified: true,
+      );
+
+      final copy = result.copyWith(confirmations: 3);
+
+      expect(copy.rawFormat, 'EAN_13');
+      expect(copy.checksumVerified, isTrue);
+      expect(copy.confirmations, 3);
+    });
+  });
+}

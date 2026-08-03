@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
@@ -38,6 +39,13 @@ class FakeScannerPlatform implements ScannerPlatform {
   /// Thrown from [startSession] when set.
   Object? startSessionError;
 
+  /// When set, [startSession] parks until it completes.
+  ///
+  /// Lets a test hold one start mid-flight and begin a second, which is the
+  /// only way to reach the controller's stale-session branch — on real hardware
+  /// the race depends on how long the browser takes to hand back a track.
+  Completer<void>? startSessionGate;
+
   /// Returned by [decodeImage].
   RawDecode? imageDecode;
 
@@ -47,6 +55,12 @@ class FakeScannerPlatform implements ScannerPlatform {
   // --- Recorded interactions -------------------------------------------------
 
   final List<StartSessionRequest> startRequests = <StartSessionRequest>[];
+
+  /// MIME type, mode and engine of every [decodeImage] call.
+  final List<({String mimeType, ScanMode mode, ScanEngine engine})>
+      decodeRequests =
+      <({String mimeType, ScanMode mode, ScanEngine engine})>[];
+
   final List<String> stoppedSessions = <String>[];
   final List<String> probedDeviceIds = <String>[];
   final List<String> registeredViewIds = <String>[];
@@ -98,7 +112,10 @@ class FakeScannerPlatform implements ScannerPlatform {
   @override
   Future<ScanSession> startSession(StartSessionRequest request) async {
     startRequests.add(request);
+    // Captured before parking, so a test can retune the fake for a second
+    // start without retroactively changing what this one does.
     final error = startSessionError;
+    await startSessionGate?.future;
     if (error != null) throw error;
 
     _onDecode = request.onDecode;
@@ -134,6 +151,7 @@ class FakeScannerPlatform implements ScannerPlatform {
     required ScanMode mode,
     required ScanEngine engine,
   }) async {
+    decodeRequests.add((mimeType: mimeType, mode: mode, engine: engine));
     final error = decodeImageError;
     if (error != null) throw error;
     return imageDecode;
@@ -145,6 +163,5 @@ class FakeScannerPlatform implements ScannerPlatform {
   }
 
   @override
-  Widget buildPreview(String viewId) =>
-      const SizedBox.expand(key: previewKey);
+  Widget buildPreview(String viewId) => const SizedBox.expand(key: previewKey);
 }
