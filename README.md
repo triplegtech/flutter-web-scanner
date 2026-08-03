@@ -178,9 +178,10 @@ flutter test --coverage
 cd example && flutter run -d chrome   # runnable demo
 ```
 
-Pull requests run format, analysis, the full test suite with an 80%
-line-coverage floor, the same suite on the minimum supported SDK, and a web
-build of the example.
+Pull requests run analysis, the full test suite with an 80% line-coverage
+floor, the same suite on the minimum supported SDK, and a web build of the
+example. Formatting is reported as a warning, not enforced — `dart format`
+output differs between Dart releases.
 
 Releases are automatic: merging a version bump in `pubspec.yaml` into `main`
 re-runs the tests and publishes to pub.dev, then tags the commit. Merges that

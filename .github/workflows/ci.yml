@@ -38,6 +38,11 @@ jobs:
         run: flutter pub get
 
       - name: Verify formatting
+        # Advisory, not a gate. `dart format` output changes between Dart
+        # releases, so this job (which tracks stable) disagrees with a developer
+        # formatting on the SDK floor — through no fault of the code. Reported
+        # as a warning so drift stays visible without blocking a merge.
+        continue-on-error: true
         run: dart format --output=none --set-exit-if-changed .
 
       - name: Analyze

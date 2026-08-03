@@ -25,7 +25,9 @@ cd example && flutter build web      # the only thing that compiles the interop 
 
 `.github/workflows/ci.yml` is the only workflow, and its two halves never run together.
 
-**On a pull request** (and on manual dispatch), three jobs run in parallel: format + analyze + test with coverage + `pub publish --dry-run`; the same suite on the minimum supported SDK (Flutter 3.41.4); and a web build of `example/`. They re-run on every push to the PR, so what merges is what was verified.
+**On a pull request** (and on manual dispatch), three jobs run in parallel: analyze + test with coverage + `pub publish --dry-run`; the same suite on the minimum supported SDK (Flutter 3.41.4); and a web build of `example/`. They re-run on every push to the PR, so what merges is what was verified.
+
+The formatting check in the first job is **advisory** (`continue-on-error`). `dart format` output changes between Dart releases, so a job tracking stable will flag files formatted on the SDK floor even when nothing is wrong with them — a warning is honest, a merge block would not be. Still run `dart format .` before committing.
 
 **On a push to `main`** — i.e. when a PR lands — only the `publish` job runs. It compares `version:` in `pubspec.yaml` against the pub.dev API and does nothing unless that version is new, so ordinary merges cost one short job. When it *is* new it checks the CHANGELOG, re-runs analyze and the tests at the merge commit, publishes, then creates the `v<version>` tag and a GitHub release as a *record*. That tag is pushed with `GITHUB_TOKEN`, which by design does not start another workflow run.
 
