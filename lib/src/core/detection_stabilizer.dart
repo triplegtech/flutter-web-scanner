@@ -135,8 +135,8 @@ class DetectionStabilizer {
   void _advanceStreak(String value, DateTime now) {
     final lastHit = _streakLastHit;
     final isSameValue = _streakValue == value;
-    final isStale =
-        lastHit == null || now.difference(lastHit) > validation.confirmationWindow;
+    final isStale = lastHit == null ||
+        now.difference(lastHit) > validation.confirmationWindow;
 
     if (isSameValue && !isStale) {
       _streakCount++;

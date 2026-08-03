@@ -212,7 +212,8 @@ class ScannerController extends ChangeNotifier {
     if (targets.isEmpty) return const <CameraModel>[];
 
     final measured = <String, CameraModel>{
-      for (final candidate in ranked) candidate.camera.deviceId: candidate.camera,
+      for (final candidate in ranked)
+        candidate.camera.deviceId: candidate.camera,
     };
 
     for (final target in targets) {
@@ -256,8 +257,7 @@ class ScannerController extends ChangeNotifier {
 
   /// Whether a newer [start] superseded generation [generation], or the
   /// controller was disposed while an await was pending.
-  bool _isStale(int generation) =>
-      _disposed || generation != _startGeneration;
+  bool _isStale(int generation) => _disposed || generation != _startGeneration;
 
   void _setState(ScannerState next) {
     if (_disposed) return;

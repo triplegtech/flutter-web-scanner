@@ -189,8 +189,7 @@ abstract final class BarcodeValidator {
         _hasValidGtinCheckDigit(value),
       BarcodeFormat.upcE => _hasValidUpcECheckDigit(value),
       // Only ITF-14 defines a check digit; other ITF lengths carry none.
-      BarcodeFormat.itf =>
-        value.length != 14 || _hasValidGtinCheckDigit(value),
+      BarcodeFormat.itf => value.length != 14 || _hasValidGtinCheckDigit(value),
       _ => true,
     };
   }
@@ -249,7 +248,10 @@ abstract final class BarcodeValidator {
 
     final d = body;
     final manufacturerAndProduct = switch (d[5]) {
-      '0' || '1' || '2' => '${d.substring(0, 2)}${d[5]}0000${d.substring(2, 5)}',
+      '0' ||
+      '1' ||
+      '2' =>
+        '${d.substring(0, 2)}${d[5]}0000${d.substring(2, 5)}',
       '3' => '${d.substring(0, 3)}00000${d.substring(3, 5)}',
       '4' => '${d.substring(0, 4)}00000${d[4]}',
       _ => '${d.substring(0, 5)}0000${d[5]}',
@@ -276,5 +278,6 @@ abstract final class BarcodeValidator {
     return true;
   }
 
-  static int _digitAt(String value, int index) => value.codeUnitAt(index) - 0x30;
+  static int _digitAt(String value, int index) =>
+      value.codeUnitAt(index) - 0x30;
 }

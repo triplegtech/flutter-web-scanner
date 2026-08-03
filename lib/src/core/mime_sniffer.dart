@@ -22,7 +22,8 @@ abstract final class MimeSniffer {
 
   /// Returns the MIME type implied by [bytes], or `null` when unrecognised.
   static String? sniff(Uint8List bytes) {
-    if (_matches(bytes, const [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])) {
+    if (_matches(
+        bytes, const [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])) {
       return 'image/png';
     }
     if (_matches(bytes, const [0xFF, 0xD8, 0xFF])) {
@@ -73,7 +74,14 @@ abstract final class MimeSniffer {
       };
 
   static const Set<String> _heifBrands = {
-    'heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'mif1', 'msf1',
+    'heic',
+    'heix',
+    'hevc',
+    'hevx',
+    'heim',
+    'heis',
+    'mif1',
+    'msf1',
   };
 
   static bool _isHeifBrand(Uint8List bytes) {

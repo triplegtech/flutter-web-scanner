@@ -59,7 +59,8 @@ void main() {
       );
     });
 
-    test('only checks ITF payloads of length 14, since shorter ITF has no '
+    test(
+        'only checks ITF payloads of length 14, since shorter ITF has no '
         'check digit', () {
       // ITF-14 with a valid check digit.
       expect(

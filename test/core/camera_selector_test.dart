@@ -154,7 +154,8 @@ void main() {
       );
     });
 
-    test('ranks a depth sensor last, since it cannot produce a decodable '
+    test(
+        'ranks a depth sensor last, since it cannot produce a decodable '
         'image', () {
       final ranked = rankedLabels([
         camera('Back TrueDepth Camera'),
@@ -171,7 +172,8 @@ void main() {
       expect(ranked.first, 'Back Ultra Wide Camera');
     });
 
-    test('prefers the main lens at normal range, where ultra-wide distortion '
+    test(
+        'prefers the main lens at normal range, where ultra-wide distortion '
         'hurts 1D decoding', () {
       final ranked = rankedLabels(
         [camera('Back Ultra Wide Camera'), camera('Back Wide Camera')],

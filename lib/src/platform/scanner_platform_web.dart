@@ -129,8 +129,7 @@ class WebScannerPlatform implements ScannerPlatform {
     required ScanEngine engine,
   }) async {
     final config = ScannerCodec.encodeDecodeConfig(mode: mode, engine: engine);
-    final json =
-        await interop.decodeImage(bytes.toJS, mimeType, config).toDart;
+    final json = await interop.decodeImage(bytes.toJS, mimeType, config).toDart;
     return ScannerCodec.decodeResult(json.toDart);
   }
 

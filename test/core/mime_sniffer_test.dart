@@ -47,7 +47,10 @@ void main() {
     test('does not mistake a non-WEBP RIFF container for an image', () {
       final wav = Uint8List.fromList([
         ...'RIFF'.codeUnits,
-        0x00, 0x00, 0x00, 0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
         ...'WAVE'.codeUnits,
       ]);
       expect(MimeSniffer.sniff(wav), isNull);
@@ -75,7 +78,10 @@ void main() {
 
     test('rejects an ISO-BMFF file whose brand is not HEIF', () {
       final mp4 = Uint8List.fromList([
-        0x00, 0x00, 0x00, 0x18,
+        0x00,
+        0x00,
+        0x00,
+        0x18,
         ...'ftyp'.codeUnits,
         ...'isom'.codeUnits,
       ]);

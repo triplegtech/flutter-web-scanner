@@ -211,8 +211,8 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
       return builder(context) ?? const SizedBox.shrink();
     }
     return ScannerOverlay(
-      style: widget.overlayStyle ??
-          ScannerOverlayStyle.forMode(widget.scanMode),
+      style:
+          widget.overlayStyle ?? ScannerOverlayStyle.forMode(widget.scanMode),
     );
   }
 

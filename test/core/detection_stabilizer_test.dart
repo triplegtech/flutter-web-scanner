@@ -142,7 +142,8 @@ void main() {
       );
     });
 
-    test('tracks cooldowns per value, so two codes in frame do not clear each '
+    test(
+        'tracks cooldowns per value, so two codes in frame do not clear each '
         "other's", () {
       final stabilizer = build(const ScanValidation(confirmations: 1));
       stabilizer.offer(validEan, BarcodeFormat.ean13);

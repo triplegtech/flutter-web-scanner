@@ -72,7 +72,6 @@ class CameraModel {
   int get hashCode => Object.hash(deviceId, label, groupId);
 
   @override
-  String toString() =>
-      'CameraModel(deviceId: $deviceId, label: $label, '
+  String toString() => 'CameraModel(deviceId: $deviceId, label: $label, '
       'facing: ${facing.name})';
 }

@@ -231,7 +231,6 @@ abstract final class CameraSelector {
       (ScanDistance.auto, LensKind.macro) => 100,
       (ScanDistance.auto, LensKind.ultraWide) => 50,
       (ScanDistance.auto, LensKind.telephoto) => -50,
-
       (_, LensKind.unknown) => 0,
       (_, LensKind.depth) => 0,
     };

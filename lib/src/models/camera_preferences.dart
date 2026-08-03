@@ -13,7 +13,8 @@ class CameraPreferences {
     this.continuousFocus = true,
     this.zoom,
     this.torch = false,
-  })  : assert(idealWidth > 0 && idealHeight > 0, 'resolution must be positive'),
+  })  : assert(
+            idealWidth > 0 && idealHeight > 0, 'resolution must be positive'),
         assert(maxProbedCameras >= 0, 'maxProbedCameras cannot be negative'),
         assert(zoom == null || zoom >= 1.0, 'zoom below 1.0 is not meaningful');
 

@@ -77,13 +77,19 @@ class ScannerFailure implements Exception {
   /// older Safari and Firefox still emit, so all spellings are handled.
   static ScannerFailureKind kindFromDomError(String? name) =>
       switch (name?.trim()) {
-        'NotAllowedError' || 'PermissionDeniedError' || 'SecurityError' =>
+        'NotAllowedError' ||
+        'PermissionDeniedError' ||
+        'SecurityError' =>
           ScannerFailureKind.permissionDenied,
-        'NotFoundError' || 'DevicesNotFoundError' =>
+        'NotFoundError' ||
+        'DevicesNotFoundError' =>
           ScannerFailureKind.noCameraFound,
-        'NotReadableError' || 'TrackStartError' || 'AbortError' =>
+        'NotReadableError' ||
+        'TrackStartError' ||
+        'AbortError' =>
           ScannerFailureKind.cameraInUse,
-        'OverconstrainedError' || 'ConstraintNotSatisfiedError' =>
+        'OverconstrainedError' ||
+        'ConstraintNotSatisfiedError' =>
           ScannerFailureKind.overconstrained,
         _ => ScannerFailureKind.unknown,
       };
