@@ -1,0 +1,52 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "example: pub get",
+            "type": "shell",
+            "command": "flutter",
+            "args": [
+                "pub",
+                "get"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/example"
+            },
+            "group": "build"
+        },
+        {
+            "label": "example: run chrome",
+            "type": "shell",
+            "command": "flutter",
+            "args": [
+                "run",
+                "-d",
+                "chrome"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/example"
+            },
+            "isBackground": true,
+            "group": "build"
+        },
+        {
+            "label": "example: run web-server 8080",
+            "type": "shell",
+            "command": "flutter",
+            "args": [
+                "run",
+                "-d",
+                "web-server",
+                "--web-hostname",
+                "0.0.0.0",
+                "--web-port",
+                "8080"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/example"
+            },
+            "isBackground": true,
+            "group": "build"
+        }
+    ]
+}
