@@ -1,0 +1,277 @@
+import 'dart:async' show unawaited;
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show Widget;
+import 'package:omni_qrcode_barcode_web_reader/src/controllers/scanner_state.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/core/camera_selector.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/core/detection_stabilizer.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_engine.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_mode.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/models/barcode_result.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/models/camera_model.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/models/camera_preferences.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/models/scan_validation.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_failure.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/platform/scanner_platform.dart';
+
+/// Owns the scanner's lifecycle: camera choice, session start/stop, and the
+/// validation pipeline between a raw decode and `onDetect`.
+///
+/// Deliberately holds no `BuildContext` and imports nothing browser-specific,
+/// so its entire flow — including failure paths that are impractical to
+/// reproduce on real hardware — is exercisable with a fake [ScannerPlatform].
+class ScannerController extends ChangeNotifier {
+  ScannerController({
+    required this.onDetect,
+    this.onFailure,
+    this.mode = ScanMode.barcode,
+    this.engine = ScanEngine.zxing,
+    ScanValidation? validation,
+    CameraPreferences? preferences,
+    ScannerPlatform? platform,
+    DateTime Function()? clock,
+    String? instanceId,
+  })  : validation = validation ?? ScanValidation.forMode(mode),
+        preferences = preferences ?? CameraPreferences.forMode(mode),
+        _platform = platform ?? ScannerPlatformResolver.instance,
+        id = instanceId ?? 'omni-${_instanceCounter++}' {
+    _stabilizer = DetectionStabilizer(
+      validation: this.validation,
+      clock: clock,
+    );
+    _platform.registerView(viewId: viewId, containerId: containerId);
+  }
+
+  /// Monotonic per-isolate counter.
+  ///
+  /// Preferred over a timestamp so ids stay reproducible in tests and two
+  /// scanners created in the same microsecond cannot collide.
+  static int _instanceCounter = 0;
+
+  /// Unique identifier for this scanner instance.
+  final String id;
+
+  final void Function(BarcodeResult result) onDetect;
+  final void Function(ScannerFailure failure)? onFailure;
+
+  final ScanMode mode;
+  final ScanEngine engine;
+  final ScanValidation validation;
+  final CameraPreferences preferences;
+
+  final ScannerPlatform _platform;
+  late final DetectionStabilizer _stabilizer;
+
+  String get viewId => 'omni-view-$id';
+  String get containerId => 'omni-container-$id';
+
+  ScannerState _state = const ScannerIdle();
+  ScannerState get state => _state;
+
+  /// Cameras found during the last [start], best-first.
+  List<CameraCandidate> get candidates => List.unmodifiable(_candidates);
+  List<CameraCandidate> _candidates = const <CameraCandidate>[];
+
+  bool _disposed = false;
+
+  /// Guards against a slow start finishing after a newer one began.
+  int _startGeneration = 0;
+
+  /// Widget hosting the video element.
+  Widget buildPreview() => _platform.buildPreview(viewId);
+
+  /// Brings the scanner up: initialise, choose a camera, open the stream.
+  ///
+  /// Safe to call repeatedly; a start already in flight is superseded.
+  Future<void> start() async {
+    if (_disposed) return;
+
+    final generation = ++_startGeneration;
+    _setState(const ScannerInitializing());
+    // A restart must not let a code read before it suppress the same code
+    // read after it.
+    _stabilizer.reset();
+
+    try {
+      final availability = await _platform.initialize();
+      if (_isStale(generation)) return;
+
+      // Fails fast with an actionable message rather than silently scanning
+      // with an engine the caller did not ask for.
+      final resolvedEngine = availability.resolve(engine);
+
+      final camera = await _selectCamera(generation);
+      if (_isStale(generation)) return;
+
+      final session = await _platform.startSession(
+        StartSessionRequest(
+          sessionId: id,
+          containerId: containerId,
+          deviceId: camera?.deviceId,
+          mode: mode,
+          engine: resolvedEngine,
+          preferences: preferences,
+          onDecode: _handleDecode,
+          onFailure: _handleFailure,
+        ),
+      );
+      if (_isStale(generation)) {
+        // A newer start won the race while this session was opening; release
+        // its camera instead of leaking the track.
+        await _platform.stopSession(session.id);
+        return;
+      }
+
+      _setState(ScannerReady(session));
+    } on ScannerFailure catch (failure) {
+      if (_isStale(generation)) return;
+      _reportFailure(failure);
+    } on Object catch (error, stackTrace) {
+      if (_isStale(generation)) return;
+      // Interop and asset loading can surface arbitrary values, so anything
+      // unclassified is normalised rather than escaping as an unhandled error.
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'omni_qrcode_barcode_web_reader',
+          context: ErrorDescription('while starting the scanner'),
+        ),
+      );
+      _reportFailure(
+        ScannerFailure(
+          ScannerFailureKind.startFailed,
+          error.toString(),
+          cause: error,
+        ),
+      );
+    }
+  }
+
+  /// Stops the current session and starts a new one.
+  Future<void> restart() async {
+    await stop();
+    await start();
+  }
+
+  /// Stops the session and releases the camera, leaving the controller usable.
+  Future<void> stop() async {
+    _startGeneration++;
+    await _platform.stopSession(id);
+    if (_disposed) return;
+    _setState(const ScannerIdle());
+  }
+
+  /// Chooses the camera to open.
+  ///
+  /// Returns `null` when no camera can be identified, which is not an error:
+  /// the JS constraint ladder falls back to `facingMode: environment` and then
+  /// to any camera at all, so scanning still starts.
+  Future<CameraModel?> _selectCamera(int generation) async {
+    final cameras = await _platform.listCameras();
+    if (_isStale(generation)) return null;
+    if (cameras.isEmpty) {
+      throw const ScannerFailure(
+        ScannerFailureKind.noCameraFound,
+        'the browser reported no video input devices',
+      );
+    }
+
+    var ranked = CameraSelector.rank(
+      cameras,
+      mode: mode,
+      preferences: preferences,
+    );
+
+    final refined = await _probeCandidates(ranked, generation);
+    if (_isStale(generation)) return null;
+    if (refined.isNotEmpty) {
+      // Re-rank with measured focus distances, which outweigh every
+      // label-derived guess and can legitimately overturn the initial order.
+      ranked = CameraSelector.rank(
+        refined,
+        mode: mode,
+        preferences: preferences,
+      );
+    }
+
+    _candidates = ranked;
+    return ranked.isEmpty ? null : ranked.first.camera;
+  }
+
+  /// Measures real capabilities for the top candidates.
+  ///
+  /// Returns the full camera list with any measurements folded in, or an empty
+  /// list when nothing was probed. Failures are absorbed: probing is an
+  /// optimisation and must never stop the scanner from starting.
+  Future<List<CameraModel>> _probeCandidates(
+    List<CameraCandidate> ranked,
+    int generation,
+  ) async {
+    final targets = CameraSelector.probeTargets(ranked, preferences);
+    if (targets.isEmpty) return const <CameraModel>[];
+
+    final measured = <String, CameraModel>{
+      for (final candidate in ranked)
+        candidate.camera.deviceId: candidate.camera,
+    };
+
+    for (final target in targets) {
+      if (_isStale(generation)) return const <CameraModel>[];
+      final capabilities = await _platform.probeCamera(target.deviceId);
+      if (capabilities == null) continue;
+      final existing = measured[target.deviceId];
+      if (existing == null) continue;
+      measured[target.deviceId] = existing.withCapabilities(capabilities);
+    }
+
+    return measured.values.toList();
+  }
+
+  /// Runs a raw decode through validation and confirmation.
+  void _handleDecode(RawDecode decode) {
+    if (_disposed) return;
+
+    final decision = _stabilizer.offer(decode.value, decode.format);
+    switch (decision) {
+      case StabilizerEmit(:final result):
+        onDetect(result.copyWith(rawFormat: decode.rawFormat));
+      case StabilizerPending():
+      case StabilizerSuppressed():
+      case StabilizerRejected():
+        // Every non-emitting outcome is expected many times per second and is
+        // not worth surfacing.
+        break;
+    }
+  }
+
+  void _handleFailure(ScannerFailure failure) {
+    if (_disposed) return;
+    _reportFailure(failure);
+  }
+
+  void _reportFailure(ScannerFailure failure) {
+    _setState(ScannerFailed(failure));
+    onFailure?.call(failure);
+  }
+
+  /// Whether a newer [start] superseded generation [generation], or the
+  /// controller was disposed while an await was pending.
+  bool _isStale(int generation) => _disposed || generation != _startGeneration;
+
+  void _setState(ScannerState next) {
+    if (_disposed) return;
+    _state = next;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _startGeneration++;
+    // Fire-and-forget: dispose cannot await, and the JS side releases tracks
+    // defensively even if this races with teardown.
+    unawaited(_platform.stopSession(id));
+    super.dispose();
+  }
+}

@@ -1,0 +1,221 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # A new push to a PR makes the previous run's answer irrelevant. A run on
+  # main may be mid-publish, so those queue instead of being cancelled.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: write
+
+env:
+  # Line coverage the package must not fall below.
+  MIN_COVERAGE: 80
+
+jobs:
+  test:
+    name: Format, analyze and test
+    # Quality gates belong to the pull request: they run when it is opened and
+    # on every push to it, so what gets merged is what was verified.
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify formatting
+        # Advisory, not a gate. `dart format` output changes between Dart
+        # releases, so this job (which tracks stable) disagrees with a developer
+        # formatting on the SDK floor — through no fault of the code. Reported
+        # as a warning so drift stays visible without blocking a merge.
+        continue-on-error: true
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze
+        # --fatal-infos so lint hints cannot accumulate silently between
+        # releases; the package currently analyzes clean at this level.
+        run: flutter analyze --fatal-infos
+
+      - name: Run unit and widget tests
+        run: flutter test --coverage
+
+      - name: Enforce coverage threshold
+        run: |
+          covered=$(grep -c '^DA:[0-9]*,[1-9]' coverage/lcov.info)
+          total=$(grep -c '^DA:' coverage/lcov.info)
+          percent=$(awk "BEGIN { printf \"%.2f\", $covered * 100 / $total }")
+          echo "Line coverage: $percent% ($covered/$total)"
+          awk "BEGIN { exit ($percent < $MIN_COVERAGE) }" || {
+            echo "::error::Coverage $percent% is below the ${MIN_COVERAGE}% minimum"
+            exit 1
+          }
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov
+          path: coverage/lcov.info
+          if-no-files-found: warn
+
+      - name: Validate package layout
+        run: dart pub publish --dry-run
+
+  min-sdk:
+    # The pubspec claims support down to Flutter 3.41.4 / Dart 3.11; nothing
+    # else verifies that claim, since the `test` job tracks stable and would
+    # keep passing as the floor drifts out from under it.
+    name: Minimum supported SDK
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.4'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run unit and widget tests
+        run: flutter test
+
+  web-build:
+    # `flutter test` runs on the VM, where the conditional import resolves to
+    # the unsupported stub — so the entire js_interop layer is unverified until
+    # something compiles it for the browser. This is that something.
+    name: Example web build
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: example
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze the example
+        run: flutter analyze
+
+      - name: Build for the web
+        run: flutter build web --release
+
+  publish:
+    # Releasing is a consequence of merging, not of tagging: this runs when a
+    # PR lands on main and publishes only when pubspec.yaml carries a version
+    # pub.dev does not have yet. Merges that change no version cost one short
+    # job and publish nothing.
+    #
+    # It deliberately does not `needs:` the jobs above — those are skipped on a
+    # push, and a dependency on a skipped job would skip this one too. Their
+    # guarantee comes from branch protection (the PR cannot merge red); the
+    # analyze and test steps below are the second line of defence, so a direct
+    # push to main still cannot publish a broken release.
+    name: Publish to pub.dev
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Decide whether this version needs publishing
+        id: version
+        run: |
+          name=$(grep '^name:' pubspec.yaml | awk '{print $2}')
+          version=$(grep '^version:' pubspec.yaml | awk '{print $2}')
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          if curl -sf "https://pub.dev/api/packages/$name" \
+              | jq -e --arg v "$version" '.versions[] | select(.version == $v)' \
+              > /dev/null; then
+            echo "$name $version is already on pub.dev; nothing to release"
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "$name $version is new; releasing"
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify the CHANGELOG documents this version
+        if: steps.version.outputs.needed == 'true'
+        run: |
+          if ! grep -q "${{ steps.version.outputs.version }}" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no entry for ${{ steps.version.outputs.version }}"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        if: steps.version.outputs.needed == 'true'
+        run: flutter pub get
+
+      - name: Analyze
+        if: steps.version.outputs.needed == 'true'
+        run: flutter analyze --fatal-infos
+
+      - name: Run unit and widget tests
+        # Re-run at the merge commit rather than trusting the PR's green tick:
+        # another PR may have landed in between, and this is the exact tree
+        # that goes to pub.dev.
+        if: steps.version.outputs.needed == 'true'
+        run: flutter test
+
+      - name: Decode pub credentials
+        if: steps.version.outputs.needed == 'true'
+        run: |
+          mkdir -p "$HOME/.config/dart"
+          echo "${{ secrets.PUB_CREDENTIAL_JSON }}" > "$HOME/.config/dart/pub-credentials.json"
+
+      - name: Check publish warnings
+        if: steps.version.outputs.needed == 'true'
+        run: dart pub publish --dry-run
+
+      - name: Publish package
+        if: steps.version.outputs.needed == 'true'
+        run: dart pub publish --force
+
+      - name: Tag the released commit
+        # A record of what was published, not a trigger: a tag pushed with
+        # GITHUB_TOKEN deliberately does not start another workflow run.
+        if: steps.version.outputs.needed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "v$VERSION" -m "v$VERSION"
+          git push origin "v$VERSION"
+          gh release create "v$VERSION" \
+            --title "Release v$VERSION" \
+            --notes "See [CHANGELOG.md](CHANGELOG.md) for details."
