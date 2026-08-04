@@ -1,7 +1,8 @@
 import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_distance.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_mode.dart';
 
-/// How the camera should be chosen and configured.
+/// How the camera should be chosen and configured, and how hard the decoder
+/// should work on what it produces.
 class CameraPreferences {
   const CameraPreferences({
     this.distance = ScanDistance.auto,
@@ -13,10 +14,22 @@ class CameraPreferences {
     this.continuousFocus = true,
     this.zoom,
     this.torch = false,
+    this.decodeInterval = const Duration(milliseconds: 100),
+    this.roiWidthFactor = 1.0,
+    this.roiHeightFactor = 1.0,
+    this.tryHarder = true,
   })  : assert(
             idealWidth > 0 && idealHeight > 0, 'resolution must be positive'),
         assert(maxProbedCameras >= 0, 'maxProbedCameras cannot be negative'),
-        assert(zoom == null || zoom >= 1.0, 'zoom below 1.0 is not meaningful');
+        assert(zoom == null || zoom >= 1.0, 'zoom below 1.0 is not meaningful'),
+        assert(
+          roiWidthFactor > 0 && roiWidthFactor <= 1,
+          'roiWidthFactor must be within (0, 1]',
+        ),
+        assert(
+          roiHeightFactor > 0 && roiHeightFactor <= 1,
+          'roiHeightFactor must be within (0, 1]',
+        );
 
   /// Expected distance between lens and code. See [ScanDistance].
   final ScanDistance distance;
@@ -67,6 +80,55 @@ class CameraPreferences {
   /// Turn the torch on when the device supports it.
   final bool torch;
 
+  /// Idle gap left between decode attempts.
+  ///
+  /// A negative duration is treated as zero rather than rejected: `Duration`
+  /// cannot be compared inside a `const` assert, so the check happens where
+  /// the value crosses into the interop layer.
+  ///
+  /// This is a gap, not a period: a frame that takes 40 ms to decode with a
+  /// 100 ms interval occupies roughly a third of the main thread, leaving the
+  /// rest to Flutter. It is the knob that decides whether the page stays
+  /// responsive, because decoding runs on the same thread as rendering.
+  ///
+  /// Shortening it costs battery and frame budget for a little less latency
+  /// before a code is confirmed; at the default a `ScanValidation` gets ten
+  /// attempts per second, far more than the two confirmations it asks for
+  /// within its window.
+  final Duration decodeInterval;
+
+  /// Width of the decoded region, as a fraction of the visible preview.
+  ///
+  /// The preview is rendered with `object-fit: cover`, so part of each frame
+  /// falls outside the widget and can never be aimed at. That part is always
+  /// discarded — `1.0` means "everything the user can see", not "the whole
+  /// sensor frame". On a portrait phone showing a landscape stream this alone
+  /// removes roughly two thirds of every frame.
+  ///
+  /// Lower it to match a tighter overlay: the region is centred, so `0.8`
+  /// decodes the middle 80% of the visible width and ignores codes at the
+  /// edges. The region is cropped, never scaled, so the pixel density that
+  /// [idealWidth] buys is preserved.
+  final double roiWidthFactor;
+
+  /// Height of the decoded region, as a fraction of the visible preview.
+  ///
+  /// See [roiWidthFactor]. Pairs well with the wide, short cut-out that
+  /// [ScanMode.barcode] draws — a linear symbol only ever occupies a band
+  /// across the middle of the frame.
+  final double roiHeightFactor;
+
+  /// Ask the decoder to work harder on each frame.
+  ///
+  /// Costs several times more per attempt on 1D symbologies — extra scan
+  /// lines, reversed rows and a rotated pass — and buys reads of blurred or
+  /// tilted codes. Worth keeping on unless a low-end device still struggles
+  /// after [decodeInterval] and the region factors have been tuned. Has no
+  /// effect on the native `BarcodeDetector` engine, which exposes no
+  /// equivalent, or on still-image decoding, where one attempt is all there
+  /// is.
+  final bool tryHarder;
+
   /// Defaults tuned for [mode].
   ///
   /// Linear barcodes are typically presented closer and need the horizontal
@@ -86,6 +148,10 @@ class CameraPreferences {
     bool? continuousFocus,
     double? zoom,
     bool? torch,
+    Duration? decodeInterval,
+    double? roiWidthFactor,
+    double? roiHeightFactor,
+    bool? tryHarder,
   }) {
     return CameraPreferences(
       distance: distance ?? this.distance,
@@ -97,6 +163,10 @@ class CameraPreferences {
       continuousFocus: continuousFocus ?? this.continuousFocus,
       zoom: zoom ?? this.zoom,
       torch: torch ?? this.torch,
+      decodeInterval: decodeInterval ?? this.decodeInterval,
+      roiWidthFactor: roiWidthFactor ?? this.roiWidthFactor,
+      roiHeightFactor: roiHeightFactor ?? this.roiHeightFactor,
+      tryHarder: tryHarder ?? this.tryHarder,
     );
   }
 }

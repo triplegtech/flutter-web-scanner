@@ -13,7 +13,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 2;
+  var VERSION = 3;
 
   // Re-injection happens on hot restart. Redefining the namespace would orphan
   // the sessions the previous closure still owns, so bail out when a compatible
@@ -517,18 +517,147 @@
     return false;
   }
 
+  /** Pacing used when the caller specified none, in milliseconds. */
+  var DEFAULT_DECODE_INTERVAL_MS = 100;
+
+  /**
+   * Floor on either side of the decoded region.
+   *
+   * A container measured before layout settles reports zero, which would
+   * otherwise produce a 0x0 canvas and make `getImageData` throw.
+   */
+  var MIN_REGION_PX = 160;
+
+  /**
+   * @param {?Object} config
+   * @returns {number} milliseconds to leave between decode attempts
+   */
+  function decodeIntervalOf(config) {
+    var value = config && config.decodeIntervalMs;
+    if (typeof value !== 'number' || !isFinite(value) || value < 0) {
+      return DEFAULT_DECODE_INTERVAL_MS;
+    }
+    return value;
+  }
+
+  /**
+   * @param {*} value
+   * @returns {number} a fraction within (0, 1]
+   */
+  function regionFactor(value) {
+    if (typeof value !== 'number' || !(value > 0) || value > 1) return 1;
+    return value;
+  }
+
+  /**
+   * Picks the slice of each frame worth decoding, in video pixels.
+   *
+   * The preview is rendered with `object-fit: cover`, so a portrait container
+   * showing a landscape stream pushes most of the frame's width outside the
+   * element — on a typical phone roughly two thirds of every 1920x1080 frame
+   * is never visible and can never be aimed at. Decoding it is pure cost, so
+   * the default region is "everything the user can see" and nothing more.
+   *
+   * Cropping rather than downscaling is deliberate: the bar/space pattern of
+   * an EAN-13 needs the native pixel density that `idealWidth` was raised to
+   * obtain, and scaling the frame down would give it straight back.
+   *
+   * @param {HTMLVideoElement} video
+   * @param {Object} config
+   * @returns {?{x: number, y: number, width: number, height: number}}
+   */
+  function computeDecodeRegion(video, config) {
+    var frameWidth = video.videoWidth;
+    var frameHeight = video.videoHeight;
+    if (!frameWidth || !frameHeight) return null;
+
+    var container = video.parentNode;
+    var boxWidth = (container && container.clientWidth) || 0;
+    var boxHeight = (container && container.clientHeight) || 0;
+
+    var visibleWidth = frameWidth;
+    var visibleHeight = frameHeight;
+    if (boxWidth > 0 && boxHeight > 0) {
+      var boxAspect = boxWidth / boxHeight;
+      visibleWidth = Math.min(frameWidth, frameHeight * boxAspect);
+      visibleHeight = Math.min(frameHeight, frameWidth / boxAspect);
+    }
+
+    var width = Math.round(visibleWidth * regionFactor(config.roiWidthFactor));
+    var height = Math.round(
+      visibleHeight * regionFactor(config.roiHeightFactor)
+    );
+    width = Math.max(Math.min(width, frameWidth), Math.min(MIN_REGION_PX, frameWidth));
+    height = Math.max(
+      Math.min(height, frameHeight),
+      Math.min(MIN_REGION_PX, frameHeight)
+    );
+
+    return {
+      x: Math.round((frameWidth - width) / 2),
+      y: Math.round((frameHeight - height) / 2),
+      width: width,
+      height: height,
+    };
+  }
+
+  /**
+   * Narrows the reader's capture canvas to [computeDecodeRegion].
+   *
+   * `drawFrameOnCanvas` is ZXing's own documented extension point for this
+   * ("overwriting this allows you to manipulate the next frame in anyway you
+   * want before decode"), so everything downstream — grayscale buffer reuse,
+   * the hybrid binarizer, the format readers — is untouched and simply sees a
+   * smaller bitmap.
+   *
+   * @param {*} reader a BrowserMultiFormatReader
+   * @param {Object} config
+   */
+  function installRegionCrop(reader, config) {
+    reader.drawFrameOnCanvas = function (video, dimensions, context) {
+      // The library calls this with one argument, so the defaults declared on
+      // the function it replaces do not apply and have to be restored here.
+      var target = context || this.captureCanvasContext;
+      if (!target) return;
+
+      var canvas = target.canvas;
+      var region = computeDecodeRegion(video, config);
+      if (!canvas || !region) return;
+
+      // Assigning either dimension clears the canvas, so it has to precede the
+      // draw — and happen only on a real change, which in practice means a
+      // device rotation mid-session.
+      if (canvas.width !== region.width || canvas.height !== region.height) {
+        canvas.width = region.width;
+        canvas.height = region.height;
+      }
+
+      target.drawImage(
+        video,
+        region.x,
+        region.y,
+        region.width,
+        region.height,
+        0,
+        0,
+        region.width,
+        region.height
+      );
+    };
+  }
+
   /**
    * Builds a ZXing reader restricted to the requested formats.
    *
-   * @param {Array<string>} formats ZXing BarcodeFormat names
+   * @param {Object} config
    * @returns {*} a BrowserMultiFormatReader
    */
-  function createZXingReader(formats) {
+  function createZXingReader(config) {
     var Z = zxing();
     if (!Z) throw new Error('ZXing library is not loaded');
 
     var hints = new Map();
-    var possible = (formats || [])
+    var possible = ((config && config.formats) || [])
       .map(function (name) {
         return Z.BarcodeFormat[name];
       })
@@ -542,9 +671,15 @@
     if (possible.length > 0) {
       hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, possible);
     }
-    hints.set(Z.DecodeHintType.TRY_HARDER, true);
+    // TRY_HARDER multiplies the 1D path several times over — more scan lines,
+    // reversed rows, and a rotated pass. On a still image that buys accuracy
+    // for one attempt. On a live stream it repeats every decode interval, so
+    // the caller gets to trade it away.
+    if (!config || config.tryHarder !== false) {
+      hints.set(Z.DecodeHintType.TRY_HARDER, true);
+    }
 
-    return new Z.BrowserMultiFormatReader(hints, 100);
+    return new Z.BrowserMultiFormatReader(hints, decodeIntervalOf(config));
   }
 
   /**
@@ -552,10 +687,23 @@
    * @param {Object} config
    */
   function startZXingSession(session, config) {
-    var reader = createZXingReader(config.formats);
+    var reader = createZXingReader(config);
     session.reader = reader;
 
-    reader.decodeFromStream(
+    // The single most important line in this file for battery and jank.
+    //
+    // ZXing's continuous loop reschedules itself with `timeBetweenScansMillis`
+    // only after a *successful* decode; every frame that finds nothing — which
+    // is nearly all of them while the user is still aiming — reschedules with
+    // `timeBetweenDecodingAttempts`, and that property defaults to 0. Left
+    // alone the loop therefore runs full-resolution decodes back-to-back for
+    // as long as the camera is open, saturating the main thread and starving
+    // Flutter's own rendering. The constructor argument cannot express this;
+    // only the setter can.
+    reader.timeBetweenDecodingAttempts = decodeIntervalOf(config);
+    installRegionCrop(reader, config);
+
+    var pending = reader.decodeFromStream(
       session.stream,
       session.video,
       function (result, error) {
@@ -570,6 +718,20 @@
         }
       }
     );
+
+    // decodeFromStream rejects when the video never plays. Without this the
+    // rejection is unhandled and the caller sees a preview that silently never
+    // scans.
+    if (pending && typeof pending.catch === 'function') {
+      pending.catch(function (error) {
+        if (session.stopped) return;
+        var kind = kindFromError(error);
+        session.onFailure(
+          kind === Kind.unknown ? Kind.startFailed : kind,
+          describe(error)
+        );
+      });
+    }
   }
 
   /**
@@ -601,9 +763,6 @@
     return new window.BarcodeDetector({ formats: requested });
   }
 
-  /** Minimum gap between native detect() calls, in milliseconds. */
-  var NATIVE_DETECT_INTERVAL_MS = 60;
-
   /**
    * @param {Object} session
    * @param {Object} config
@@ -612,6 +771,7 @@
     var detector = await createNativeDetector(config.formats);
     session.detector = detector;
 
+    var intervalMs = decodeIntervalOf(config);
     var lastRun = 0;
     var busy = false;
 
@@ -622,7 +782,7 @@
       // detect() is async; without this guard a slow frame would stack calls.
       if (busy) return;
       var timestamp = typeof now === 'number' ? now : Date.now();
-      if (timestamp - lastRun < NATIVE_DETECT_INTERVAL_MS) return;
+      if (timestamp - lastRun < intervalMs) return;
       // HAVE_CURRENT_DATA. Detecting before this yields nothing but costs work.
       if (session.video.readyState < 2) return;
 
@@ -648,7 +808,7 @@
         session.frameHandle = session.video.requestVideoFrameCallback(scan);
         session.usesFrameCallback = true;
       } else {
-        session.frameHandle = setTimeout(scan, NATIVE_DETECT_INTERVAL_MS);
+        session.frameHandle = setTimeout(scan, intervalMs);
         session.usesFrameCallback = false;
       }
     }
@@ -924,7 +1084,7 @@
         }
       }
 
-      var reader = createZXingReader(config.formats);
+      var reader = createZXingReader(config);
       var image = await loadImageElement(blob);
       try {
         var result = await reader.decodeFromImageElement(image);
