@@ -13,7 +13,9 @@
 (function () {
   'use strict';
 
-  var VERSION = 3;
+  // Bumped whenever the DOM the preview builds changes, so a hot restart
+  // replaces the installed namespace instead of keeping the old markup.
+  var VERSION = 4;
 
   // Re-injection happens on hot restart. Redefining the namespace would orphan
   // the sessions the previous closure still owns, so bail out when a compatible
@@ -467,6 +469,18 @@
   function createVideoElement(sessionId) {
     var video = document.createElement('video');
     video.id = 'omni-video-' + sessionId;
+    // Pinned to the container's box rather than sized as flow content.
+    //
+    // A <video> is an inline replaced element, so `height: 100%` only resolves
+    // when every ancestor up to the platform view's slot has a definite height,
+    // and it still reserves a text baseline underneath. When that resolution
+    // fails the element silently falls back to its intrinsic aspect ratio and
+    // covers only part of the container — the overlay then frames an area the
+    // camera image does not reach. Absolute inset removes both failure modes.
+    video.style.position = 'absolute';
+    video.style.top = '0';
+    video.style.left = '0';
+    video.style.display = 'block';
     video.style.width = '100%';
     video.style.height = '100%';
     video.style.objectFit = 'cover';
@@ -928,6 +942,17 @@
 
       session.video = createVideoElement(session.id);
       container.appendChild(session.video);
+
+      // Whether the preview actually covers the widget can only be observed in
+      // a real browser, and when it does not the symptom — an overlay framing
+      // an area the image never reaches — looks like an overlay bug.
+      session.video.addEventListener('loadedmetadata', function () {
+        logDebug('preview geometry for session ' + session.id, {
+          container: container.clientWidth + 'x' + container.clientHeight,
+          video: session.video.clientWidth + 'x' + session.video.clientHeight,
+          frame: session.video.videoWidth + 'x' + session.video.videoHeight,
+        });
+      });
 
       if (engine === 'native') {
         session.video.srcObject = session.stream;

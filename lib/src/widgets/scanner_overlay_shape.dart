@@ -59,16 +59,31 @@ class ScannerOverlayShape extends ShapeBorder {
     final height =
         cutOutHeight < rect.height ? cutOutHeight : rect.height - borderOffset;
 
+    final size = Size(width - borderOffset * 2, height - borderOffset * 2);
+    final centred = Offset(
+      rect.left + (rect.width - size.width) / 2,
+      rect.top + (rect.height - size.height) / 2,
+    );
+
+    // The corner brackets are stroked along the window's edge, so half of each
+    // stroke falls outside it. Keeping the window that far inside the widget is
+    // what lets them be drawn whole.
+    final minTop = rect.top + borderOffset;
+    final maxTop = rect.bottom - borderOffset - size.height;
+
     return RRect.fromRectAndRadius(
       Rect.fromLTWH(
-        rect.left + rect.width / 2 - width / 2 + borderOffset,
-        -cutOutBottomOffset +
-            rect.top +
-            rect.height / 2 -
-            height / 2 +
-            borderOffset,
-        width - borderOffset * 2,
-        height - borderOffset * 2,
+        centred.dx,
+        // cutOutBottomOffset lifts the window towards the top of the widget to
+        // leave room for instructions below it. On a preview short enough for
+        // the window to fill it, that used to lift the window clean off the top
+        // edge and take the upper brackets with it, so the lift only applies as
+        // far as there is room for it.
+        maxTop < minTop
+            ? centred.dy
+            : (centred.dy - cutOutBottomOffset).clamp(minTop, maxTop),
+        size.width,
+        size.height,
       ),
       Radius.circular(borderRadius),
     );

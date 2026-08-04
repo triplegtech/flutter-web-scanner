@@ -120,13 +120,22 @@ class CameraPreferences {
 
   /// Ask the decoder to work harder on each frame.
   ///
-  /// Costs several times more per attempt on 1D symbologies — extra scan
-  /// lines, reversed rows and a rotated pass — and buys reads of blurred or
-  /// tilted codes. Worth keeping on unless a low-end device still struggles
-  /// after [decodeInterval] and the region factors have been tuned. Has no
-  /// effect on the native `BarcodeDetector` engine, which exposes no
-  /// equivalent, or on still-image decoding, where one attempt is all there
-  /// is.
+  /// Cheap on 2D codes, which are found by a single-pass detector, and brutal
+  /// on 1D ones: ZXing's `OneDReader` scans 15 rows spread across the middle
+  /// of the region without it and *every* row of the region with it, then
+  /// repeats the whole search on a rotated copy — for each enabled symbology.
+  /// On a 1080-tall region that is the difference between fifteen row scans
+  /// and well over two thousand, on the same thread that renders the page.
+  ///
+  /// Hence [CameraPreferences.forMode] leaves it on for [ScanMode.qrCode] and
+  /// turns it off for [ScanMode.barcode]. What it buys is a read of a blurred
+  /// or tilted symbol on an attempt that would otherwise miss; on a live
+  /// camera the next attempt is 100 ms away, so a miss costs latency rather
+  /// than accuracy.
+  ///
+  /// Has no effect on the native `BarcodeDetector` engine, which exposes no
+  /// equivalent, or on still-image decoding, where one attempt is all there is
+  /// and it stays on regardless.
   final bool tryHarder;
 
   /// Defaults tuned for [mode].
@@ -135,7 +144,28 @@ class CameraPreferences {
   /// resolution, so they get [ScanDistance.near]. QR codes tolerate distance
   /// and lower resolution well.
   factory CameraPreferences.forMode(ScanMode mode) => mode.isLinear
-      ? const CameraPreferences(distance: ScanDistance.near)
+      ? const CameraPreferences(
+          distance: ScanDistance.near,
+          // A linear symbol is a horizontal band, and the overlay this mode
+          // draws is a short wide window telling the user exactly that. Reading
+          // only that band halves the pixels every attempt has to grayscale,
+          // binarise and scan. Chosen to still contain the whole drawn window,
+          // which sits slightly above centre — a code framed where the user was
+          // told to frame it must never fall outside what is decoded.
+          roiHeightFactor: 0.5,
+          // The rest of the frame's width is where a barcode too long for the
+          // window still is, so this stays whole.
+          roiWidthFactor: 1.0,
+          // ZXing's 1D path is the reason barcode mode used to stall the page.
+          // With TRY_HARDER it scans *every* row of the region rather than 15
+          // spread across the middle — 1080 passes instead of 15 on a 1080-tall
+          // region — and then repeats the whole thing on a rotated copy, once
+          // per enabled symbology. That is affordable for a single still image
+          // and ruinous ten times a second on the thread that also renders the
+          // page. Fifteen rows across a band the user is actively aiming is
+          // plenty, and a miss costs one frame out of ten rather than accuracy.
+          tryHarder: false,
+        )
       : const CameraPreferences();
 
   CameraPreferences copyWith({

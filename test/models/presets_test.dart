@@ -17,6 +17,29 @@ void main() {
       );
     });
 
+    test('spares the 1D reader its per-row blow-up in barcode mode', () {
+      // TRY_HARDER makes ZXing's OneDReader scan every row of the region
+      // instead of 15 across its middle, then repeat on a rotated copy, once
+      // per enabled symbology. Ten times a second on the thread that renders
+      // the page, that is what made the preview stutter in barcode mode.
+      final barcode = CameraPreferences.forMode(ScanMode.barcode);
+
+      expect(barcode.tryHarder, isFalse);
+      // A linear symbol is a band, so most of the frame's height is waste.
+      expect(barcode.roiHeightFactor, lessThan(1.0));
+      // Its width is not: a barcode can be wider than the framing window.
+      expect(barcode.roiWidthFactor, 1.0);
+    });
+
+    test('leaves the 2D detector working hard', () {
+      // QR decoding is a single-pass detector with no per-row loop to blow up,
+      // so the accuracy is worth having.
+      final qr = CameraPreferences.forMode(ScanMode.qrCode);
+
+      expect(qr.tryHarder, isTrue);
+      expect(qr.roiHeightFactor, 1.0);
+    });
+
     test('requests a resolution high enough to resolve bar widths', () {
       // Browsers hand back 640x480 unless asked otherwise, at which an EAN-13
       // held at arm's length lands on too few pixels to decode.

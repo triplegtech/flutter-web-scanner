@@ -9,12 +9,17 @@ void main() {
   const hostWidth = 300.0;
   const hostHeight = 400.0;
 
-  Widget host(ScannerOverlayStyle style) => MaterialApp(
+  Widget host(
+    ScannerOverlayStyle style, {
+    double width = hostWidth,
+    double height = hostHeight,
+  }) =>
+      MaterialApp(
         home: Scaffold(
           body: Center(
             child: SizedBox(
-              width: hostWidth,
-              height: hostHeight,
+              width: width,
+              height: height,
               child: ScannerOverlay(style: style),
             ),
           ),
@@ -48,6 +53,31 @@ void main() {
               Offset(hostWidth / 2, hostHeight - 10),
             ],
             excludes: const <Offset>[Offset(hostWidth / 2, 180)],
+          ),
+      );
+    });
+
+    testWidgets('keeps the window inside a preview shorter than the cut-out',
+        (tester) async {
+      // cutOutBottomOffset lifts the window to leave room for instructions
+      // below it. With a cut-out taller than the preview that lift used to
+      // carry the window off the top edge, clipping the upper brackets away.
+      await tester.pumpWidget(
+        host(
+          const ScannerOverlayStyle(showScanLine: false),
+          height: 250,
+        ),
+      );
+
+      expect(
+        find.byType(ScannerOverlay),
+        paints
+          ..path(
+            includes: const <Offset>[
+              Offset(hostWidth / 2, 1),
+              Offset(hostWidth / 2, 249),
+            ],
+            excludes: const <Offset>[Offset(hostWidth / 2, 120)],
           ),
       );
     });
@@ -87,6 +117,16 @@ void main() {
       );
 
       expect(lineIn(find.byType(ScannerOverlay)), findsNothing);
+    });
+  });
+
+  group('ScannerOverlayStyle', () {
+    test('dims to the shade 2.0.x actually rendered', () {
+      // The shape used to apply this alpha twice, once filling a saveLayer and
+      // again compositing it back, so the screen only ever saw 0x8F. Dropping
+      // the layer for performance made the declared value real and the overlay
+      // visibly darker; the default is pinned to what users had.
+      expect(const ScannerOverlayStyle().overlayColor, const Color(0x8F000000));
     });
   });
 
