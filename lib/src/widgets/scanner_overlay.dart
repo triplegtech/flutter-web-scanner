@@ -1,7 +1,10 @@
 import 'package:flutter/widgets.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_overlay_style.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/widgets/scanner_line_painter.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/widgets/scanner_overlay_shape.dart';
+
+/// Inset of the sweep line from each side of the window, so it reads as inside
+/// the frame rather than running into the corner brackets.
+const double _scanLineInset = 8;
 
 /// Dims the preview outside a framing window and animates a scan line inside
 /// it.
@@ -103,13 +106,24 @@ class _ScannerOverlayState extends State<ScannerOverlay>
                     child: SizedBox(
                       width: cutOutWidth,
                       height: style.cutOutHeight,
-                      child: AnimatedBuilder(
-                        animation: _sweep,
-                        builder: (context, _) => CustomPaint(
-                          painter: ScannerLinePainter(
-                            position: _sweep.value * style.cutOutHeight,
-                            color: style.scanLineColor,
-                            strokeWidth: style.scanLineWidth,
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: AnimatedBuilder(
+                          animation: _sweep,
+                          // Built once and handed back to every tick. The line
+                          // itself never changes, only where it sits, so
+                          // rebuilding it inside the builder would throw away
+                          // the raster the boundary below is holding.
+                          child: RepaintBoundary(
+                            child: _ScanLine(
+                              color: style.scanLineColor,
+                              thickness: style.scanLineWidth,
+                            ),
+                          ),
+                          builder: (context, child) => Transform.translate(
+                            offset:
+                                Offset(0, _sweep.value * style.cutOutHeight),
+                            child: child,
                           ),
                         ),
                       ),
@@ -120,6 +134,39 @@ class _ScannerOverlayState extends State<ScannerOverlay>
           ],
         );
       },
+    );
+  }
+}
+
+/// The sweeping line, rasterised once and thereafter only moved.
+///
+/// Painting this with a [CustomPainter] meant re-rasterising a cut-out-sized
+/// picture on each of the sixty frames a second the sweep runs for, for the
+/// whole time the camera is open. As an ordinary box behind a
+/// [RepaintBoundary] it is rasterised once and the animation above it changes
+/// nothing but a layer's transform, which is work the compositor already does.
+class _ScanLine extends StatelessWidget {
+  const _ScanLine({required this.color, required this.thickness});
+
+  final Color color;
+  final double thickness;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: _scanLineInset),
+      child: SizedBox(
+        width: double.infinity,
+        height: thickness,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: color,
+            // Reproduces the round stroke cap the line had while it was drawn
+            // as a stroked segment.
+            borderRadius: BorderRadius.circular(thickness / 2),
+          ),
+        ),
+      ),
     );
   }
 }

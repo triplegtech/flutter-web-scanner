@@ -182,6 +182,15 @@ abstract final class ScannerCodec {
       'continuousFocus': preferences.continuousFocus,
       'zoom': preferences.zoom,
       'torch': preferences.torch,
+      // Guarded here rather than in the constructor: a `const` assert cannot
+      // compare two Durations, so this is the first place the value can be
+      // checked at all.
+      'decodeIntervalMs': preferences.decodeInterval.isNegative
+          ? 0
+          : preferences.decodeInterval.inMilliseconds,
+      'roiWidthFactor': preferences.roiWidthFactor,
+      'roiHeightFactor': preferences.roiHeightFactor,
+      'tryHarder': preferences.tryHarder,
     });
   }
 
