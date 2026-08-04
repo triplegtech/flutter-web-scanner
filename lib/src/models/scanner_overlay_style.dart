@@ -15,7 +15,7 @@ class ScannerOverlayStyle {
     this.borderLength = 30,
     this.borderWidth = 8,
     this.borderRadius = 10,
-    this.overlayColor = const Color(0xBF000000),
+    this.overlayColor = const Color(0x8F000000),
     this.scanLineColor = const Color(0xFFE53935),
     this.scanLineWidth = 3,
     this.showScanLine = true,
@@ -44,6 +44,12 @@ class ScannerOverlayStyle {
   final double borderRadius;
 
   /// Colour of the dimmed area outside the cut-out.
+  ///
+  /// Rendered at exactly the alpha given here. Until 2.0.x the shape wrapped
+  /// its paint in a `saveLayer` and handed the same colour to both the layer
+  /// and the fill, so the alpha was applied twice and a nominal `0xBF` reached
+  /// the screen as `0x8F`. The default is the value that was actually visible,
+  /// not the one that used to be written down.
   final Color overlayColor;
 
   final Color scanLineColor;

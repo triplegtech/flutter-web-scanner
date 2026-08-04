@@ -17,6 +17,29 @@ void main() {
       );
     });
 
+    test('spares the 1D reader its per-row blow-up in barcode mode', () {
+      // TRY_HARDER makes ZXing's OneDReader scan every row of the region
+      // instead of 15 across its middle, then repeat on a rotated copy, once
+      // per enabled symbology. Ten times a second on the thread that renders
+      // the page, that is what made the preview stutter in barcode mode.
+      final barcode = CameraPreferences.forMode(ScanMode.barcode);
+
+      expect(barcode.tryHarder, isFalse);
+      // A linear symbol is a band, so most of the frame's height is waste.
+      expect(barcode.roiHeightFactor, lessThan(1.0));
+      // Its width is not: a barcode can be wider than the framing window.
+      expect(barcode.roiWidthFactor, 1.0);
+    });
+
+    test('leaves the 2D detector working hard', () {
+      // QR decoding is a single-pass detector with no per-row loop to blow up,
+      // so the accuracy is worth having.
+      final qr = CameraPreferences.forMode(ScanMode.qrCode);
+
+      expect(qr.tryHarder, isTrue);
+      expect(qr.roiHeightFactor, 1.0);
+    });
+
     test('requests a resolution high enough to resolve bar widths', () {
       // Browsers hand back 640x480 unless asked otherwise, at which an EAN-13
       // held at arm's length lands on too few pixels to decode.
@@ -33,6 +56,30 @@ void main() {
       expect(preferences.maxProbedCameras, greaterThan(0));
     });
 
+    test('leaves the main thread idle between decode attempts', () {
+      // Decoding runs on the thread that renders the page, so a zero gap —
+      // which is what ZXing does when left alone — starves Flutter entirely.
+      const preferences = CameraPreferences();
+
+      expect(preferences.decodeInterval, greaterThan(Duration.zero));
+      // Still comfortably more attempts per second than the two confirmations
+      // a barcode read needs inside its 1500 ms window.
+      expect(
+        preferences.decodeInterval,
+        lessThanOrEqualTo(const Duration(milliseconds: 200)),
+      );
+    });
+
+    test('decodes the whole visible frame until told otherwise', () {
+      // The region is measured against what the preview shows, not the sensor
+      // frame, so 1.0 already discards everything cropped away by object-fit.
+      const preferences = CameraPreferences();
+
+      expect(preferences.roiWidthFactor, 1.0);
+      expect(preferences.roiHeightFactor, 1.0);
+      expect(preferences.tryHarder, isTrue);
+    });
+
     test('copyWith replaces only what it is given', () {
       const preferences = CameraPreferences(distance: ScanDistance.near);
       final zoomed = preferences.copyWith(zoom: 2, torch: true);
@@ -43,6 +90,20 @@ void main() {
       expect(zoomed.idealWidth, preferences.idealWidth);
     });
 
+    test('copyWith carries the decode tuning across', () {
+      const preferences = CameraPreferences();
+      final tuned = preferences.copyWith(
+        decodeInterval: const Duration(milliseconds: 250),
+        roiHeightFactor: 0.5,
+        tryHarder: false,
+      );
+
+      expect(tuned.decodeInterval, const Duration(milliseconds: 250));
+      expect(tuned.roiHeightFactor, 0.5);
+      expect(tuned.tryHarder, isFalse);
+      expect(tuned.roiWidthFactor, preferences.roiWidthFactor);
+    });
+
     test('rejects settings that cannot describe a camera', () {
       expect(() => CameraPreferences(idealWidth: 0), throwsAssertionError);
       expect(
@@ -50,6 +111,12 @@ void main() {
       // Below 1.0 is not zoom, it is a wider field of view, which no browser
       // exposes this way.
       expect(() => CameraPreferences(zoom: 0.5), throwsAssertionError);
+    });
+
+    test('rejects a decode region that is not a fraction of the frame', () {
+      expect(() => CameraPreferences(roiWidthFactor: 0), throwsAssertionError);
+      expect(
+          () => CameraPreferences(roiHeightFactor: 1.5), throwsAssertionError);
     });
   });
 

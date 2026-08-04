@@ -212,10 +212,24 @@ abstract final class CameraSelector {
     List<String> reasons,
   ) {
     final points = switch ((distance, lens)) {
-      // Close range: short minimum focus beats pixels on target.
+      // Close range: short minimum focus beats pixels on target — but no label
+      // is evidence of short minimum focus.
+      //
+      // This used to rank ultra-wide above main here on the label alone, on the
+      // theory that the ultra-wide is the macro lens. In a browser it is not.
+      // iOS switches to it for macro inside the camera app and never through
+      // getUserMedia, and on most Android hardware the ultra-wide is
+      // fixed-focus, so a code held close to it is simply blurred. Since
+      // ScanMode.barcode scans at this distance, the effect was that scanning a
+      // barcode picked a worse lens than scanning a QR code did, and the user
+      // had to pull the code *away* from a frame telling them to come closer.
+      //
+      // 'macro' is kept ahead because that word does state close focus. The gap
+      // over ultra-wide is deliberately small enough that a measured focus
+      // distance — worth up to 400 just below — still overturns it.
       (ScanDistance.near, LensKind.macro) => 350,
-      (ScanDistance.near, LensKind.ultraWide) => 300,
-      (ScanDistance.near, LensKind.main) => 100,
+      (ScanDistance.near, LensKind.main) => 250,
+      (ScanDistance.near, LensKind.ultraWide) => 150,
       (ScanDistance.near, LensKind.telephoto) => -150,
 
       // Normal range: the main lens puts the most detail on the target, and

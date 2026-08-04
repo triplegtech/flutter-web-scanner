@@ -1,9 +1,9 @@
-// ignore_for_file: no_leading_underscores_for_local_identifiers
-
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+/// Dims everything outside a framing window and draws a corner bracket at each
+/// of its corners.
 class ScannerOverlayShape extends ShapeBorder {
   ScannerOverlayShape({
     this.borderColor = Colors.red,
@@ -48,138 +48,189 @@ class ScannerOverlayShape extends ShapeBorder {
   }
 
   @override
-  Path getOuterPath(Rect rect, {TextDirection? textDirection}) {
-    Path _getLeftTopPath(Rect rect) {
-      return Path()
-        ..moveTo(rect.left, rect.bottom)
-        ..lineTo(rect.left, rect.top)
-        ..lineTo(rect.right, rect.top);
-    }
+  Path getOuterPath(Rect rect, {TextDirection? textDirection}) =>
+      Path()..addRect(rect);
 
-    return _getLeftTopPath(rect)
-      ..lineTo(
-        rect.right,
-        rect.bottom,
-      )
-      ..lineTo(
-        rect.left,
-        rect.bottom,
-      )
-      ..lineTo(
-        rect.left,
-        rect.top,
-      );
+  /// The framing window this shape carves out of [rect].
+  ///
+  /// Public so that anything drawn *inside* the window — the sweep line — can
+  /// be placed from the same numbers rather than from a second reconstruction
+  /// of them. The two drifted apart as soon as the window started being
+  /// clamped to fit, which is exactly the case nobody checks by eye.
+  RRect windowFor(Rect rect) {
+    final borderOffset = borderWidth / 2;
+    final width =
+        cutOutWidth < rect.width ? cutOutWidth : rect.width - borderOffset;
+    final height =
+        cutOutHeight < rect.height ? cutOutHeight : rect.height - borderOffset;
+
+    final size = Size(width - borderOffset * 2, height - borderOffset * 2);
+    final centred = Offset(
+      rect.left + (rect.width - size.width) / 2,
+      rect.top + (rect.height - size.height) / 2,
+    );
+
+    // The corner brackets are stroked along the window's edge, so half of each
+    // stroke falls outside it. Keeping the window that far inside the widget is
+    // what lets them be drawn whole.
+    final minTop = rect.top + borderOffset;
+    final maxTop = rect.bottom - borderOffset - size.height;
+
+    return RRect.fromRectAndRadius(
+      Rect.fromLTWH(
+        centred.dx,
+        // cutOutBottomOffset lifts the window towards the top of the widget to
+        // leave room for instructions below it. On a preview short enough for
+        // the window to fill it, that used to lift the window clean off the top
+        // edge and take the upper brackets with it, so the lift only applies as
+        // far as there is room for it.
+        maxTop < minTop
+            ? centred.dy
+            : (centred.dy - cutOutBottomOffset).clamp(minTop, maxTop),
+        size.width,
+        size.height,
+      ),
+      Radius.circular(borderRadius),
+    );
   }
 
   @override
   void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {
-    final width = rect.width;
-    final borderWidthSize = width / 2;
-    final height = rect.height;
-    final borderOffset = borderWidth / 2;
-    final _borderLength =
-        borderLength > min(cutOutHeight, cutOutHeight) / 2 + borderWidth * 2
-            ? borderWidthSize / 2
-            : borderLength;
-    final _cutOutWidth =
-        cutOutWidth < width ? cutOutWidth : width - borderOffset;
-    final _cutOutHeight =
-        cutOutHeight < height ? cutOutHeight : height - borderOffset;
+    final window = windowFor(rect);
 
-    final backgroundPaint = Paint()
-      ..color = overlayColor
-      ..style = PaintingStyle.fill;
+    // One fill, no offscreen surface.
+    //
+    // The obvious way to punch a window out of a filled rect is to wrap both
+    // in a saveLayer and erase with BlendMode.dstOut, which is what this
+    // painted before. CanvasKit answers a saveLayer by allocating a
+    // viewport-sized RGBA texture, rendering into it and compositing it back
+    // — on a phone that is several megabytes of traffic per paint, and it was
+    // the single most expensive thing the overlay did. Subtracting the window
+    // from the rect up front is the same picture from one drawPath.
+    final outside = Path.combine(
+      PathOperation.difference,
+      Path()..addRect(rect),
+      Path()..addRRect(window),
+    );
 
-    final borderPaint = Paint()
+    canvas.drawPath(outside, Paint()..color = overlayColor);
+
+    _paintBrackets(
+      canvas,
+      window,
+      outside,
+      // Kept as it was, including comparing cutOutHeight against itself: the
+      // constructor's assert already rejects everything this would catch, so
+      // the branch is unreachable and correcting it would be a change with no
+      // way to observe it.
+      borderLength > min(cutOutHeight, cutOutHeight) / 2 + borderWidth * 2
+          ? rect.width / 4
+          : borderLength,
+    );
+  }
+
+  /// Draws the four corner brackets.
+  ///
+  /// Each bracket is stroked as a whole rounded rectangle and becomes the
+  /// familiar L only because everything inside the window is taken away again.
+  /// Clipping to [outside] — the same subtracted path the dimming is filled
+  /// with — removes exactly the pixels the old dstOut pass removed, so the
+  /// brackets keep their shape without the layer that pass needed.
+  void _paintBrackets(
+    Canvas canvas,
+    RRect window,
+    Path outside,
+    double length,
+  ) {
+    final paint = Paint()
       ..color = borderColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = borderWidth;
 
-    final boxPaint = Paint()
-      ..color = borderColor
-      ..style = PaintingStyle.fill
-      ..blendMode = BlendMode.dstOut;
-
-    final cutOutRect = Rect.fromLTWH(
-      rect.left + width / 2 - _cutOutWidth / 2 + borderOffset,
-      -cutOutBottomOffset +
-          rect.top +
-          height / 2 -
-          _cutOutHeight / 2 +
-          borderOffset,
-      _cutOutWidth - borderOffset * 2,
-      _cutOutHeight - borderOffset * 2,
-    );
+    final radius = Radius.circular(borderRadius);
 
     canvas
-      ..saveLayer(
-        rect,
-        backgroundPaint,
-      )
-      ..drawRect(
-        rect,
-        backgroundPaint,
-      )
-      // Draw top right corner
+      ..save()
+      ..clipPath(outside)
       ..drawRRect(
         RRect.fromLTRBAndCorners(
-          cutOutRect.right - _borderLength,
-          cutOutRect.top,
-          cutOutRect.right,
-          cutOutRect.top + _borderLength,
-          topRight: Radius.circular(borderRadius),
+          window.right - length,
+          window.top,
+          window.right,
+          window.top + length,
+          topRight: radius,
         ),
-        borderPaint,
+        paint,
       )
-      // Draw top left corner
       ..drawRRect(
         RRect.fromLTRBAndCorners(
-          cutOutRect.left,
-          cutOutRect.top,
-          cutOutRect.left + _borderLength,
-          cutOutRect.top + _borderLength,
-          topLeft: Radius.circular(borderRadius),
+          window.left,
+          window.top,
+          window.left + length,
+          window.top + length,
+          topLeft: radius,
         ),
-        borderPaint,
+        paint,
       )
-      // Draw bottom right corner
       ..drawRRect(
         RRect.fromLTRBAndCorners(
-          cutOutRect.right - _borderLength,
-          cutOutRect.bottom - _borderLength,
-          cutOutRect.right,
-          cutOutRect.bottom,
-          bottomRight: Radius.circular(borderRadius),
+          window.right - length,
+          window.bottom - length,
+          window.right,
+          window.bottom,
+          bottomRight: radius,
         ),
-        borderPaint,
+        paint,
       )
-      // Draw bottom left corner
       ..drawRRect(
         RRect.fromLTRBAndCorners(
-          cutOutRect.left,
-          cutOutRect.bottom - _borderLength,
-          cutOutRect.left + _borderLength,
-          cutOutRect.bottom,
-          bottomLeft: Radius.circular(borderRadius),
+          window.left,
+          window.bottom - length,
+          window.left + length,
+          window.bottom,
+          bottomLeft: radius,
         ),
-        borderPaint,
-      )
-      ..drawRRect(
-        RRect.fromRectAndRadius(
-          cutOutRect,
-          Radius.circular(borderRadius),
-        ),
-        boxPaint,
+        paint,
       )
       ..restore();
   }
 
   @override
-  ShapeBorder scale(double t) {
-    return ScannerOverlayShape(
-      borderColor: borderColor,
-      borderWidth: borderWidth,
-      overlayColor: overlayColor,
-    );
-  }
+  ShapeBorder scale(double t) => ScannerOverlayShape(
+        borderColor: borderColor,
+        borderWidth: borderWidth * t,
+        overlayColor: overlayColor,
+        borderRadius: borderRadius * t,
+        borderLength: borderLength * t,
+        cutOutWidth: cutOutWidth * t,
+        cutOutHeight: cutOutHeight * t,
+        cutOutBottomOffset: cutOutBottomOffset * t,
+      );
+
+  // ShapeBorder does not define equality, so without this a shape rebuilt from
+  // an unchanged style still compares unequal to the one it replaces and
+  // ShapeDecoration repaints the whole dimmed area for nothing.
+  @override
+  bool operator ==(Object other) =>
+      other is ScannerOverlayShape &&
+      other.borderColor == borderColor &&
+      other.borderWidth == borderWidth &&
+      other.overlayColor == overlayColor &&
+      other.borderRadius == borderRadius &&
+      other.borderLength == borderLength &&
+      other.cutOutWidth == cutOutWidth &&
+      other.cutOutHeight == cutOutHeight &&
+      other.cutOutBottomOffset == cutOutBottomOffset;
+
+  @override
+  int get hashCode => Object.hash(
+        borderColor,
+        borderWidth,
+        overlayColor,
+        borderRadius,
+        borderLength,
+        cutOutWidth,
+        cutOutHeight,
+        cutOutBottomOffset,
+      );
 }

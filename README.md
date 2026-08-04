@@ -41,7 +41,7 @@ from a LAN IP surfaces as `ScannerFailureKind.insecureContext`.
 
 ```yaml
 dependencies:
-  omni_qrcode_barcode_web_reader: ^2.0.0
+  omni_qrcode_barcode_web_reader: ^2.1.0
 ```
 
 ### 2. Load a decoding engine
@@ -176,7 +176,13 @@ flutter analyze --fatal-infos
 flutter test --coverage
 
 cd example && flutter run -d chrome   # runnable demo
+cd example && ./run_device.sh         # demo over HTTPS, for a real phone
 ```
+
+`run_device.sh` serves the example and exposes it through a Cloudflare Quick
+Tunnel (`brew install cloudflared`). The camera needs a secure context, so the
+dev server's LAN address is rejected as `insecureContext` on a phone — the
+tunnel's `https://…trycloudflare.com` URL is not.
 
 Pull requests run analysis, the full test suite with an 80% line-coverage
 floor, the same suite on the minimum supported SDK, and a web build of the

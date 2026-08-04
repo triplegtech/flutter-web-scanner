@@ -1,3 +1,61 @@
+## 2.1.0
+
+Performance work on the live preview, plus the knobs to tune it. No breaking
+changes: everything below is additive or fixes behaviour that was already
+wrong.
+
+### Decoding
+
+* `CameraPreferences.decodeInterval` sets the idle gap left between decode
+  attempts, 100 ms by default. It is a gap and not a period, so it bounds how
+  much of the main thread decoding can take — which matters because decoding
+  runs on the same thread that renders the page.
+* `CameraPreferences.roiWidthFactor` and `roiHeightFactor` restrict decoding to
+  a centred fraction of the *visible* preview. The parts of each frame that
+  `object-fit: cover` pushes outside the widget were never aimable and are now
+  always discarded, so `1.0` means everything the user can see rather than the
+  whole sensor frame.
+* `CameraPreferences.tryHarder` exposes ZXing's `TRY_HARDER`. It stays on for
+  QR codes, where a single-pass detector makes it cheap.
+* `CameraPreferences.forMode(ScanMode.barcode)` now turns `tryHarder` off and
+  decodes the middle 50% of the preview's height at full width. ZXing's
+  `OneDReader` answers `TRY_HARDER` by scanning every row of the region instead
+  of fifteen and then repeating the search on a rotated copy, once per enabled
+  symbology; ten times a second on the render thread, that is what made barcode
+  mode stall the page. The band that is still read is the one the mode's own
+  overlay tells the user to aim at, at the full width a long code needs.
+
+### Overlay
+
+* The dimming is drawn as a single subtracted path instead of a `saveLayer`
+  with a `dstOut` erase. CanvasKit answers a `saveLayer` by allocating a
+  viewport-sized texture, rendering into it and compositing it back, on every
+  paint; the same picture now comes from one `drawPath`.
+* The sweep line is an ordinary box behind a `RepaintBoundary`, moved by a
+  transform, rather than a `CustomPainter` re-rasterising a cut-out-sized
+  picture sixty times a second for as long as the camera is open.
+* The line sweeps the framing window edge to edge. It ran from just outside the
+  top to a fifth short of the bottom, and left the frame altogether whenever
+  `cutOutBottomOffset` was non-zero.
+* The window's geometry is decided once and shared by the shape and the line,
+  so the two cannot drift, and it is clamped so `cutOutBottomOffset` can no
+  longer lift the window off the top of a short preview and take the upper
+  corner brackets with it.
+* `ScannerOverlayStyle.overlayColor` now defaults to `0x8F000000`. The previous
+  `0xBF000000` had its alpha applied twice by the `saveLayer`, so `0x8F` is
+  what 2.0.0 actually put on screen: the default changed, the appearance did
+  not. A custom `overlayColor` is now rendered at exactly the alpha given.
+
+### Camera selection
+
+* `ScanDistance.near` no longer promotes an ultra-wide lens on its label alone.
+  iOS switches to that lens for macro inside its camera app and never through
+  `getUserMedia`, and most Android ultra-wides are fixed-focus — so the lens
+  being ranked above the main one was the one that could not focus on a code
+  held close, and scanning a barcode picked a worse lens than scanning a QR
+  code did. A `macro` label still ranks first, by a margin small enough for a
+  measured focus distance to overturn it.
+
 ## 2.0.0
 
 A rewrite of the scanning pipeline. See the migration table in the README.
