@@ -164,12 +164,55 @@ void main() {
       expect(ranked.last, 'Back TrueDepth Camera');
     });
 
-    test('prefers the ultra-wide lens for near-range scanning', () {
+    test('does not read an ultra-wide label as evidence of close focus', () {
+      // Ultra-wide is the macro lens inside the iOS camera app, never through
+      // getUserMedia, and is fixed-focus on most Android hardware. Betting on
+      // the label made barcode mode — which scans at this distance — select a
+      // worse lens than QR mode did, on real Android and iOS devices.
       final ranked = rankedLabels(
         [camera('Back Wide Camera'), camera('Back Ultra Wide Camera')],
         preferences: const CameraPreferences(distance: ScanDistance.near),
       );
+      expect(ranked.first, 'Back Wide Camera');
+    });
+
+    test('still takes an ultra-wide measured to focus closer', () {
+      // The label is not evidence; a measurement is. This is the case the
+      // near-range preset exists for, and it has to keep working.
+      final ranked = rankedLabels(
+        [
+          camera(
+            'Back Wide Camera',
+            capabilities: caps(minFocusMetres: 0.10),
+          ),
+          camera(
+            'Back Ultra Wide Camera',
+            capabilities: caps(minFocusMetres: 0.02),
+          ),
+        ],
+        preferences: const CameraPreferences(distance: ScanDistance.near),
+      );
       expect(ranked.first, 'Back Ultra Wide Camera');
+    });
+
+    test('picks the same lens for a barcode as for a QR code held close', () {
+      // The symptom that started this: the two modes use different
+      // ScanDistance presets, and they disagreed about which lens sees a code
+      // held close to the phone.
+      const cameras = ['Back Wide Camera', 'Back Ultra Wide Camera'];
+
+      expect(
+        rankedLabels(
+          [camera(cameras[0]), camera(cameras[1])],
+          mode: ScanMode.barcode,
+          preferences: CameraPreferences.forMode(ScanMode.barcode),
+        ).first,
+        rankedLabels(
+          [camera(cameras[0]), camera(cameras[1])],
+          mode: ScanMode.qrCode,
+          preferences: CameraPreferences.forMode(ScanMode.qrCode),
+        ).first,
+      );
     });
 
     test(
