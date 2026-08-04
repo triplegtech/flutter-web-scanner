@@ -51,8 +51,13 @@ class ScannerOverlayShape extends ShapeBorder {
   Path getOuterPath(Rect rect, {TextDirection? textDirection}) =>
       Path()..addRect(rect);
 
-  /// The framing window, in the same coordinates [paint] draws in.
-  RRect _window(Rect rect) {
+  /// The framing window this shape carves out of [rect].
+  ///
+  /// Public so that anything drawn *inside* the window — the sweep line — can
+  /// be placed from the same numbers rather than from a second reconstruction
+  /// of them. The two drifted apart as soon as the window started being
+  /// clamped to fit, which is exactly the case nobody checks by eye.
+  RRect windowFor(Rect rect) {
     final borderOffset = borderWidth / 2;
     final width =
         cutOutWidth < rect.width ? cutOutWidth : rect.width - borderOffset;
@@ -91,7 +96,7 @@ class ScannerOverlayShape extends ShapeBorder {
 
   @override
   void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {
-    final window = _window(rect);
+    final window = windowFor(rect);
 
     // One fill, no offscreen surface.
     //

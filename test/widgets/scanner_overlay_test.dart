@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -97,6 +99,40 @@ void main() {
       await tester.pump(const Duration(milliseconds: 600));
 
       expect(tester.getTopLeft(line).dy, greaterThan(start));
+    });
+
+    testWidgets('reaches both edges of the window and neither passes them',
+        (tester) async {
+      // 1.x swept -0.075 → 0.80 of the cut-out's height, so the line began
+      // above the frame and stopped a fifth short of its bottom.
+      const style = ScannerOverlayStyle();
+      await tester.pumpWidget(host(style));
+
+      final overlay = tester.getRect(find.byType(ScannerOverlay));
+      final window = ScannerOverlayShape(
+        cutOutWidth: hostWidth * style.cutOutWidthFactor,
+        cutOutHeight: style.cutOutHeight,
+        cutOutBottomOffset: style.cutOutBottomOffset,
+        borderWidth: style.borderWidth,
+        borderLength: style.borderLength,
+        borderRadius: style.borderRadius,
+      ).windowFor(Offset.zero & overlay.size).outerRect.shift(overlay.topLeft);
+
+      final line = lineIn(find.byType(ScannerOverlay));
+      var highest = double.infinity;
+      var lowest = double.negativeInfinity;
+      // A full sweep, sampled densely enough to catch either extreme.
+      for (var frame = 0; frame < 45; frame++) {
+        final rect = tester.getRect(line);
+        highest = math.min(highest, rect.top);
+        lowest = math.max(lowest, rect.bottom);
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      expect(highest, greaterThanOrEqualTo(window.top - 0.01));
+      expect(lowest, lessThanOrEqualTo(window.bottom + 0.01));
+      expect(highest, closeTo(window.top, 0.5));
+      expect(lowest, closeTo(window.bottom, 0.5));
     });
 
     testWidgets('is moved by a transform, not repainted', (tester) async {

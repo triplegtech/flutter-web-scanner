@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_overlay_style.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/widgets/scanner_overlay_shape.dart';
@@ -27,10 +29,14 @@ class _ScannerOverlayState extends State<ScannerOverlay>
     duration: widget.style.scanLineDuration,
   );
 
-  late final Animation<double> _sweep = Tween<double>(
-    begin: -0.075,
-    end: 0.80,
-  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  /// Runs 0 → 1 across the framing window, edge to edge.
+  ///
+  /// 1.x swept -0.075 → 0.80 of the cut-out's height, which started the line
+  /// outside the window and stopped it a fifth of the way short of the bottom.
+  late final Animation<double> _sweep = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeInOut,
+  );
 
   @override
   void initState() {
@@ -72,60 +78,57 @@ class _ScannerOverlayState extends State<ScannerOverlay>
         // Sized from the widget's own constraints rather than from
         // MediaQuery, so the overlay stays aligned with the preview when the
         // scanner is not full-bleed.
-        final available = constraints.hasBoundedWidth
-            ? constraints.maxWidth
-            : MediaQuery.sizeOf(context).width;
-        final cutOutWidth = available * style.cutOutWidthFactor;
+        final screen = MediaQuery.sizeOf(context);
+        final size = Size(
+          constraints.hasBoundedWidth ? constraints.maxWidth : screen.width,
+          constraints.hasBoundedHeight ? constraints.maxHeight : screen.height,
+        );
+
+        final shape = ScannerOverlayShape(
+          cutOutWidth: size.width * style.cutOutWidthFactor,
+          cutOutHeight: style.cutOutHeight,
+          cutOutBottomOffset: style.cutOutBottomOffset,
+          borderColor: style.borderColor,
+          borderLength: style.borderLength,
+          borderWidth: style.borderWidth,
+          borderRadius: style.borderRadius,
+          overlayColor: style.overlayColor,
+        );
+
+        // The one place the window's geometry is decided. Positioning the line
+        // from the shape's own answer is what keeps the two from drifting when
+        // the window is clamped to fit a short preview.
+        final window = shape.windowFor(Offset.zero & size).outerRect;
+        final travel = window.height - style.scanLineWidth;
 
         return Stack(
           fit: StackFit.expand,
           children: [
-            DecoratedBox(
-              decoration: ShapeDecoration(
-                shape: ScannerOverlayShape(
-                  cutOutWidth: cutOutWidth,
-                  cutOutHeight: style.cutOutHeight,
-                  cutOutBottomOffset: style.cutOutBottomOffset,
-                  borderColor: style.borderColor,
-                  borderLength: style.borderLength,
-                  borderWidth: style.borderWidth,
-                  borderRadius: style.borderRadius,
-                  overlayColor: style.overlayColor,
-                ),
-              ),
-            ),
+            DecoratedBox(decoration: ShapeDecoration(shape: shape)),
             if (style.showScanLine)
-              IgnorePointer(
-                child: Center(
-                  // ScannerOverlayShape lifts the cut-out by
-                  // cutOutBottomOffset. Without matching that translation the
-                  // sweep line drifts below the frame it is supposed to be
-                  // inside — visible in 1.x whenever the offset was non-zero.
-                  child: Transform.translate(
-                    offset: Offset(0, -style.cutOutBottomOffset),
-                    child: SizedBox(
-                      width: cutOutWidth,
-                      height: style.cutOutHeight,
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        child: AnimatedBuilder(
-                          animation: _sweep,
-                          // Built once and handed back to every tick. The line
-                          // itself never changes, only where it sits, so
-                          // rebuilding it inside the builder would throw away
-                          // the raster the boundary below is holding.
-                          child: RepaintBoundary(
-                            child: _ScanLine(
-                              color: style.scanLineColor,
-                              thickness: style.scanLineWidth,
-                            ),
-                          ),
-                          builder: (context, child) => Transform.translate(
-                            offset:
-                                Offset(0, _sweep.value * style.cutOutHeight),
-                            child: child,
-                          ),
+              Positioned.fromRect(
+                rect: window,
+                child: IgnorePointer(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: AnimatedBuilder(
+                      animation: _sweep,
+                      // Built once and handed back to every tick. The line
+                      // itself never changes, only where it sits, so
+                      // rebuilding it inside the builder would throw away the
+                      // raster the boundary below is holding.
+                      child: RepaintBoundary(
+                        child: _ScanLine(
+                          color: style.scanLineColor,
+                          thickness: style.scanLineWidth,
                         ),
+                      ),
+                      // Travelling the line's own thickness short of the full
+                      // height is what lands its trailing edge on the window's
+                      // bottom edge rather than past it.
+                      builder: (context, child) => Transform.translate(
+                        offset: Offset(0, _sweep.value * math.max(0, travel)),
+                        child: child,
                       ),
                     ),
                   ),
