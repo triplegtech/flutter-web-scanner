@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:omni_qrcode_barcode_web_reader/omni_qrcode_barcode_web_reader.dart';
+import 'package:omni_qrcode_barcode_web_reader_example/barcode_overlay_widget.dart';
 
 void main() => runApp(const ExampleApp());
 
@@ -83,6 +84,7 @@ class _ScannerDemoPageState extends State<ScannerDemoPage> {
               engine: _engine,
               showRetryButton: true,
               onDetect: _handleDetect,
+              overlayBuilder: (context) => BarcodeOverlayWidget(),
               onError: (failure) => setState(() => _failure = failure),
             ),
           ),
