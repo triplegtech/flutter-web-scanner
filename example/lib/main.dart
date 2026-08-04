@@ -78,8 +78,6 @@ class _ScannerDemoPageState extends State<ScannerDemoPage> {
           Expanded(
             flex: 3,
             child: OmniWebScanner(
-              // Changing the key forces a fresh session when the engine
-              // changes, since engine choice is fixed for a session's lifetime.
               key: ValueKey('$_mode-$_engine'),
               scanMode: _mode,
               engine: _engine,

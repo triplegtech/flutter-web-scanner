@@ -1,3 +1,5 @@
+import 'dart:ui' show Size;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omni_qrcode_barcode_web_reader/omni_qrcode_barcode_web_reader.dart';
 
@@ -167,12 +169,46 @@ void main() {
   });
 
   group('ScannerOverlayStyle', () {
-    test('frames a linear barcode in a wide, short window', () {
+    test('frames a linear barcode in a band and a 2D code in a square', () {
       final linear = ScannerOverlayStyle.forMode(ScanMode.barcode);
       final square = ScannerOverlayStyle.forMode(ScanMode.qrCode);
 
-      expect(linear.cutOutHeight, lessThan(square.cutOutHeight));
-      expect(linear.cutOutWidthFactor, lessThan(square.cutOutWidthFactor));
+      expect(linear.squareCutOut, isFalse);
+      expect(square.squareCutOut, isTrue);
+    });
+
+    test('draws both modes with the same frame', () {
+      // The window's shape is the only thing the mode is allowed to change.
+      // Anything else diverging is what made 1.x ship two overlay widgets.
+      final linear = ScannerOverlayStyle.forMode(ScanMode.barcode);
+      final square = ScannerOverlayStyle.forMode(ScanMode.qrCode);
+
+      expect(square.borderColor, linear.borderColor);
+      expect(square.borderLength, linear.borderLength);
+      expect(square.borderWidth, linear.borderWidth);
+      expect(square.borderRadius, linear.borderRadius);
+      expect(square.overlayColor, linear.overlayColor);
+      expect(square.scanLineColor, linear.scanLineColor);
+      expect(square.showScanLine, linear.showScanLine);
+    });
+
+    test('measures a square window against the preview it has to fit', () {
+      const square = ScannerOverlayStyle(squareCutOut: true);
+
+      // Portrait: the width is the tighter axis.
+      expect(square.cutOutSizeFor(const Size(400, 800)), const Size(280, 280));
+      // Landscape: a square taken from the width would not fit the height, and
+      // the shape would clamp it back into a rectangle.
+      expect(square.cutOutSizeFor(const Size(1200, 600)), const Size(420, 420));
+    });
+
+    test('leaves the barcode window as wide as the factor allows', () {
+      const linear = ScannerOverlayStyle();
+
+      expect(
+        linear.cutOutSizeFor(const Size(400, 800)),
+        Size(400 * linear.cutOutWidthFactor, linear.cutOutHeight),
+      );
     });
 
     test('animates the scan line by default', () {
@@ -183,11 +219,12 @@ void main() {
     });
 
     test('copyWith keeps the rest of the style intact', () {
-      const style = ScannerOverlayStyle();
+      const style = ScannerOverlayStyle(squareCutOut: true);
       final quiet = style.copyWith(showScanLine: false, cutOutHeight: 200);
 
       expect(quiet.showScanLine, isFalse);
       expect(quiet.cutOutHeight, 200);
+      expect(quiet.squareCutOut, isTrue);
       expect(quiet.borderColor, style.borderColor);
       expect(quiet.overlayColor, style.overlayColor);
     });
