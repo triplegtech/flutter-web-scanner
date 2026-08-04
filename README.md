@@ -41,7 +41,7 @@ from a LAN IP surfaces as `ScannerFailureKind.insecureContext`.
 
 ```yaml
 dependencies:
-  omni_qrcode_barcode_web_reader: ^2.0.0
+  omni_qrcode_barcode_web_reader: ^2.1.0
 ```
 
 ### 2. Load a decoding engine
