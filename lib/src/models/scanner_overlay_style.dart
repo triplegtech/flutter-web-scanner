@@ -139,4 +139,42 @@ class ScannerOverlayStyle {
       scanLineDuration: scanLineDuration ?? this.scanLineDuration,
     );
   }
+
+  // The overlay rebuilds its shape from this, and ShapeDecoration compares
+  // shapes to decide whether the dimmed area has to be repainted. Without this
+  // a style rebuilt inside a build method repaints the whole overlay on every
+  // frame anything above it changes.
+  @override
+  bool operator ==(Object other) =>
+      other is ScannerOverlayStyle &&
+      other.cutOutWidthFactor == cutOutWidthFactor &&
+      other.cutOutHeight == cutOutHeight &&
+      other.squareCutOut == squareCutOut &&
+      other.cutOutBottomOffset == cutOutBottomOffset &&
+      other.borderColor == borderColor &&
+      other.borderLength == borderLength &&
+      other.borderWidth == borderWidth &&
+      other.borderRadius == borderRadius &&
+      other.overlayColor == overlayColor &&
+      other.scanLineColor == scanLineColor &&
+      other.scanLineWidth == scanLineWidth &&
+      other.showScanLine == showScanLine &&
+      other.scanLineDuration == scanLineDuration;
+
+  @override
+  int get hashCode => Object.hash(
+        cutOutWidthFactor,
+        cutOutHeight,
+        squareCutOut,
+        cutOutBottomOffset,
+        borderColor,
+        borderLength,
+        borderWidth,
+        borderRadius,
+        overlayColor,
+        scanLineColor,
+        scanLineWidth,
+        showScanLine,
+        scanLineDuration,
+      );
 }

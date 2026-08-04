@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:omni_qrcode_barcode_web_reader/src/enums/barcode_format.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_mode.dart';
 
@@ -110,4 +111,38 @@ class ScanValidation {
       guard: guard ?? this.guard,
     );
   }
+
+  // Compared by OmniWebScanner to decide whether the camera has to be
+  // reopened, so an equal-but-rebuilt instance must not read as a change. See
+  // the note on [CameraPreferences.==].
+  //
+  // [guard] is compared by identity because a closure cannot be compared any
+  // other way: a guard rebuilt inside a build method is a different object and
+  // does count as a change. Hoist it to a top-level or static function to hold
+  // that still.
+  @override
+  bool operator ==(Object other) =>
+      other is ScanValidation &&
+      other.requireChecksum == requireChecksum &&
+      other.confirmations == confirmations &&
+      other.confirmationWindow == confirmationWindow &&
+      other.cooldown == cooldown &&
+      other.minLength == minLength &&
+      setEquals(other.allowedFormats, allowedFormats) &&
+      other.guard == guard;
+
+  @override
+  int get hashCode => Object.hash(
+        requireChecksum,
+        confirmations,
+        confirmationWindow,
+        cooldown,
+        minLength,
+        // A Set's own hashCode is identity-based, so it would undo everything
+        // setEquals establishes above.
+        allowedFormats == null
+            ? null
+            : Object.hashAllUnordered(allowedFormats!),
+        guard,
+      );
 }

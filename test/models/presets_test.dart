@@ -115,6 +115,29 @@ void main() {
       expect(() => CameraPreferences(zoom: 0.5), throwsAssertionError);
     });
 
+    test('two instances describing the same camera are equal', () {
+      // OmniWebScanner reopens the camera when these compare unequal, so an
+      // instance rebuilt from the same arguments has to compare equal or the
+      // session is torn down and restarted on every rebuild.
+      expect(CameraPreferences(), CameraPreferences());
+      expect(CameraPreferences().hashCode, CameraPreferences().hashCode);
+      expect(
+        CameraPreferences.forMode(ScanMode.barcode),
+        CameraPreferences.forMode(ScanMode.barcode),
+      );
+    });
+
+    test('a differently tuned camera is not equal', () {
+      expect(
+        CameraPreferences(),
+        isNot(CameraPreferences(tryHarder: false)),
+      );
+      expect(
+        CameraPreferences(),
+        isNot(CameraPreferences.forMode(ScanMode.barcode)),
+      );
+    });
+
     test('rejects a decode region that is not a fraction of the frame', () {
       expect(() => CameraPreferences(roiWidthFactor: 0), throwsAssertionError);
       expect(
@@ -157,6 +180,31 @@ void main() {
     test('rejects a configuration that could never emit', () {
       expect(() => ScanValidation(confirmations: 0), throwsAssertionError);
       expect(() => ScanValidation(minLength: -1), throwsAssertionError);
+    });
+
+    test('two instances describing the same rules are equal', () {
+      expect(ScanValidation(), ScanValidation());
+      expect(ScanValidation().hashCode, ScanValidation().hashCode);
+
+      // A Set compares by identity on its own, which would leave two rules
+      // allowing exactly the same formats unequal.
+      expect(
+        ScanValidation(allowedFormats: {BarcodeFormat.ean13}),
+        ScanValidation(allowedFormats: {BarcodeFormat.ean13}),
+      );
+      expect(
+        ScanValidation(allowedFormats: {BarcodeFormat.ean13}),
+        isNot(ScanValidation(allowedFormats: {BarcodeFormat.ean8})),
+      );
+    });
+
+    test('the same guard kept still leaves two rules equal', () {
+      // A closure can only be compared by identity, so a guard hoisted out of
+      // a build method holds still and one written inline does not.
+      bool guard(String value, BarcodeFormat format) => true;
+
+      expect(ScanValidation(guard: guard), ScanValidation(guard: guard));
+      expect(ScanValidation(guard: guard), isNot(ScanValidation()));
     });
 
     test('copyWith preserves the guard it was not asked to change', () {
@@ -227,6 +275,17 @@ void main() {
       expect(quiet.squareCutOut, isTrue);
       expect(quiet.borderColor, style.borderColor);
       expect(quiet.overlayColor, style.overlayColor);
+    });
+
+    test('two identical styles are equal', () {
+      // The overlay rebuilds its shape from the style, and ShapeDecoration
+      // compares shapes to decide whether to repaint the dimmed area.
+      expect(ScannerOverlayStyle(), ScannerOverlayStyle());
+      expect(ScannerOverlayStyle().hashCode, ScannerOverlayStyle().hashCode);
+      expect(
+        ScannerOverlayStyle(),
+        isNot(ScannerOverlayStyle(squareCutOut: true)),
+      );
     });
 
     test('rejects a cut-out that cannot be drawn', () {

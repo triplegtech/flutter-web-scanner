@@ -78,10 +78,30 @@ class OmniWebScanner extends StatefulWidget {
 
   /// Rules a decode must pass before reaching [onDetect]. Defaults to
   /// [ScanValidation.forMode].
+  ///
+  /// Supplying one *replaces* that preset rather than adding to it. Build on
+  /// it instead of around it:
+  ///
+  /// ```dart
+  /// validation: ScanValidation.forMode(ScanMode.barcode).copyWith(minLength: 8)
+  /// ```
   final ScanValidation? validation;
 
-  /// How the camera is chosen and configured. Defaults to
-  /// [CameraPreferences.forMode].
+  /// How the camera is chosen and configured, and how hard the decoder works.
+  /// Defaults to [CameraPreferences.forMode].
+  ///
+  /// Supplying one *replaces* that preset rather than adding to it, so a bare
+  /// `CameraPreferences()` in [ScanMode.barcode] silently gives up everything
+  /// the mode had tuned: the close-focusing lens ([ScanDistance.near]), the
+  /// band-shaped decode region, and — most expensively — the `tryHarder: false`
+  /// that keeps ZXing's 1D reader off every row of every frame. On a phone the
+  /// difference is a scanner that reads and one that does not. Start from the
+  /// preset:
+  ///
+  /// ```dart
+  /// cameraPreferences:
+  ///     CameraPreferences.forMode(ScanMode.barcode).copyWith(torch: true)
+  /// ```
   final CameraPreferences? cameraPreferences;
 
   /// Appearance of the built-in overlay. Ignored when [overlayBuilder] is set.

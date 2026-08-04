@@ -174,6 +174,89 @@ void main() {
       // several hundred milliseconds.
       expect(platform.startRequests, hasLength(1));
     });
+
+    testWidgets('does not reopen the camera for settings that did not change',
+        (tester) async {
+      // A caller writing `cameraPreferences: CameraPreferences()` inside build
+      // hands over a new instance on every rebuild. Compared by identity, that
+      // reads as a settings change and tears the camera down and back up each
+      // time — which on iOS Safari is slow enough that the stream never
+      // settles and nothing is ever decoded.
+      Widget scanner() => OmniWebScanner(
+            onDetect: detections.add,
+            scanMode: ScanMode.barcode,
+            // ignore: prefer_const_constructors
+            cameraPreferences: CameraPreferences(),
+            // ignore: prefer_const_constructors
+            validation: ScanValidation(),
+          );
+
+      await tester.pumpWidget(host(scanner()));
+      await settle(tester);
+      await tester.pumpWidget(host(scanner()));
+      await settle(tester);
+
+      expect(platform.startRequests, hasLength(1));
+    });
+
+    testWidgets('lets supplied preferences replace the mode preset entirely',
+        (tester) async {
+      // Not the behaviour anyone expects the first time, and the reason a bare
+      // `CameraPreferences()` stops a barcode scanner from reading: the preset
+      // it displaces is what keeps ZXing's 1D reader off every row of every
+      // frame, aims a close-focusing lens, and narrows the decode region to
+      // the band the overlay draws. Pinned here so a change to it is a
+      // deliberate one.
+      await tester.pumpWidget(
+        host(OmniWebScanner(
+          onDetect: detections.add,
+          scanMode: ScanMode.barcode,
+        )),
+      );
+      await settle(tester);
+
+      final preset = platform.startRequests.single.preferences;
+      expect(preset.tryHarder, isFalse);
+      expect(preset.distance, ScanDistance.near);
+      expect(preset.roiHeightFactor, lessThan(1.0));
+
+      platform.startRequests.clear();
+      await tester.pumpWidget(
+        host(OmniWebScanner(
+          key: const ValueKey('bare'),
+          onDetect: detections.add,
+          scanMode: ScanMode.barcode,
+          cameraPreferences: const CameraPreferences(),
+        )),
+      );
+      await settle(tester);
+
+      final bare = platform.startRequests.single.preferences;
+      expect(bare.tryHarder, isTrue);
+      expect(bare.distance, ScanDistance.auto);
+      expect(bare.roiHeightFactor, 1.0);
+    });
+
+    testWidgets('reopens the camera when the preferences really change',
+        (tester) async {
+      await tester.pumpWidget(
+        host(OmniWebScanner(
+          onDetect: detections.add,
+          cameraPreferences: const CameraPreferences(),
+        )),
+      );
+      await settle(tester);
+
+      await tester.pumpWidget(
+        host(OmniWebScanner(
+          onDetect: detections.add,
+          cameraPreferences: const CameraPreferences(torch: true),
+        )),
+      );
+      await settle(tester);
+
+      expect(platform.startRequests, hasLength(2));
+    });
   });
 
   group('detections', () {
