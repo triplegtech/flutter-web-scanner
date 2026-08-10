@@ -6,6 +6,7 @@ import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_mode.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/l10n/scanner_localizations.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/barcode_result.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/camera_preferences.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/models/scan_rejection.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/scan_validation.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_failure.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_overlay_style.dart';
@@ -37,6 +38,7 @@ class OmniWebScanner extends StatefulWidget {
     super.key,
     required this.onDetect,
     this.onError,
+    this.onReject,
     this.scanMode = ScanMode.barcode,
     this.engine = ScanEngine.zxing,
     this.validation,
@@ -64,6 +66,19 @@ class OmniWebScanner extends StatefulWidget {
   /// Receives a typed [ScannerFailure] rather than a localised sentence, so
   /// callers can branch on [ScannerFailureKind].
   final ValueChanged<ScannerFailure>? onError;
+
+  /// Called for each decode [validation] discarded, with the rule that
+  /// rejected it.
+  ///
+  /// A scanner that decodes but never emits raises no [ScannerFailure] and
+  /// looks exactly like one that is not decoding at all; this is what tells
+  /// the two apart. Expect it many times per second while the user is aiming,
+  /// so use it to diagnose and leave it null otherwise.
+  ///
+  /// ```dart
+  /// onReject: (r) => debugPrint('$r'),
+  /// ```
+  final ValueChanged<ScanRejection>? onReject;
 
   /// What to look for. Also drives the default overlay, the decoder's format
   /// hints, and the default camera and validation tuning.
@@ -167,6 +182,7 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
         // frozen at that build and goes on reading whatever it closed over then.
         onDetect: (result) => widget.onDetect(result),
         onFailure: (failure) => widget.onError?.call(failure),
+        onReject: (rejection) => widget.onReject?.call(rejection),
         mode: widget.scanMode,
         engine: widget.engine,
         validation: widget.validation,

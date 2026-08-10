@@ -37,6 +37,7 @@ export 'src/models/camera_capabilities.dart' show CameraCapabilities;
 export 'src/models/camera_model.dart' show CameraModel;
 export 'src/models/camera_preferences.dart' show CameraPreferences;
 export 'src/models/capability_range.dart' show CapabilityRange;
+export 'src/models/scan_rejection.dart' show ScanRejection;
 export 'src/models/scan_validation.dart' show BarcodeGuard, ScanValidation;
 export 'src/models/scanner_failure.dart'
     show ScannerFailure, ScannerFailureKind;

@@ -349,6 +349,29 @@ void main() {
 
       expect(detections.single.format, BarcodeFormat.qrCode);
     });
+
+    testWidgets('forwards a discarded read to onReject', (tester) async {
+      final rejections = <ScanRejection>[];
+
+      await tester.pumpWidget(
+        host(OmniWebScanner(
+          onDetect: detections.add,
+          onReject: rejections.add,
+          validation: const ScanValidation(
+            allowedFormats: {BarcodeFormat.qrCode},
+          ),
+        )),
+      );
+      await settle(tester);
+
+      platform.emitDecode(validEan);
+
+      // Nothing else tells the caller this happened: validation rejects
+      // downstream of the session, so the scanner stays ready and no
+      // ScannerFailure is raised.
+      expect(detections, isEmpty);
+      expect(rejections.single.reason, BarcodeRejection.formatNotAllowed);
+    });
   });
 
   group('failures', () {

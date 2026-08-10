@@ -10,6 +10,7 @@ import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_mode.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/barcode_result.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/camera_model.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/camera_preferences.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/models/scan_rejection.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/scan_validation.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_failure.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/platform/scanner_platform.dart';
@@ -24,6 +25,7 @@ class ScannerController extends ChangeNotifier {
   ScannerController({
     required this.onDetect,
     this.onFailure,
+    this.onReject,
     this.mode = ScanMode.barcode,
     this.engine = ScanEngine.zxing,
     ScanValidation? validation,
@@ -52,6 +54,14 @@ class ScannerController extends ChangeNotifier {
 
   final void Function(BarcodeResult result) onDetect;
   final void Function(ScannerFailure failure)? onFailure;
+
+  /// Called for each decode that validation discarded.
+  ///
+  /// Fires many times per second during normal aiming, so it is opt-in and
+  /// meant for diagnosing a scanner that decodes but never emits — the failure
+  /// mode `validation` introduces and the only one that raises no
+  /// [ScannerFailure]. Leave it null in production.
+  final void Function(ScanRejection rejection)? onReject;
 
   final ScanMode mode;
   final ScanEngine engine;
@@ -248,11 +258,20 @@ class ScannerController extends ChangeNotifier {
     switch (decision) {
       case StabilizerEmit(:final result):
         onDetect(result.copyWith(rawFormat: decode.rawFormat));
+      case StabilizerRejected(:final rejection):
+        onReject?.call(
+          ScanRejection(
+            value: decode.value,
+            format: decode.format,
+            rawFormat: decode.rawFormat,
+            reason: rejection.reason,
+            message: rejection.message,
+          ),
+        );
       case StabilizerPending():
       case StabilizerSuppressed():
-      case StabilizerRejected():
-        // Every non-emitting outcome is expected many times per second and is
-        // not worth surfacing.
+        // Both are expected many times per second on the way to a good read,
+        // and neither means anything is wrong.
         break;
     }
   }
