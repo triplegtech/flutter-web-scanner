@@ -1,3 +1,63 @@
+## 2.2.0
+
+Fixes a bug that made every symbology unnameable on browsers without
+`BarcodeDetector`, and adds the two callbacks that would have made it visible
+in minutes rather than a debugging session. No breaking changes.
+
+### Fixed
+
+* **The ZXing engine reported a number instead of a format name.**
+  `result.getBarcodeFormat()` returns the *ordinal* of ZXing's enum, so the
+  interop layer was sending `"7"` where Dart expected `"EAN_13"`. Every read
+  therefore parsed to `BarcodeFormat.unknown`, which was invisible until a
+  `ScanValidation.allowedFormats` set was supplied — at which point it rejected
+  *every* decode while the preview stayed live and no failure was raised.
+  Safari has no `BarcodeDetector` to fall back on, so this hit iOS hardest;
+  `ScanEngine.native` was never affected. Both the live stream and
+  `decodeBarcodeFromBytes` were reporting ordinals, and both are fixed.
+
+### Added
+
+* `OmniWebScanner.onRawDecode` and `ScannerController.onRawDecode` hand over
+  every decode the engine produced with nothing applied to it — no checksum
+  check, no format filter, no confirmation streak, no cooldown. A code held in
+  frame arrives once per decoded frame. `RawDecode.rawFormat` carries the
+  symbology name exactly as the engine spelled it, which is the only way to
+  tell a format this package does not model from one nothing could parse.
+* `OmniWebScanner.onReject` and `ScannerController.onReject` report the
+  decodes validation discarded, as a `ScanRejection` naming the rule and the
+  threshold that was missed. Rejection is the one failure mode that raises no
+  `ScannerFailure`: a scanner rejecting every frame is indistinguishable from
+  one that is not decoding at all, and this is what separates them.
+* `ScannerOverlayStyle.squareCutOut` frames the preview in a square derived
+  from the preview's shorter axis, rather than a band of fixed height.
+  `ScannerOverlayStyle.cutOutSizeFor` exposes the resulting size.
+
+### Changed
+
+* **`validation` can be replaced on a live scanner.** It is applied downstream
+  of the decoder, so new rules are handed to the running session instead of
+  reopening the camera. This matters most for `ScanValidation.guard`: a closure
+  written inside `build` is a new object on every rebuild — including the
+  rebuild a caller does to show the code they just scanned — and restarting the
+  camera for that blanked the preview after every read. Confirmation streaks
+  and cooldowns survive the swap, so new rules cannot resurface a code that was
+  just emitted.
+* **`CameraPreferences`, `ScanValidation` and `ScannerOverlayStyle` now
+  implement `==` and `hashCode`.** `OmniWebScanner` compares these to decide
+  whether to reopen the camera, and identity comparison meant
+  `cameraPreferences: CameraPreferences()` written inside a build method tore
+  the session down and back up on every rebuild — which reads as a scanner that
+  has stopped decoding. On `ScannerOverlayStyle` it also stops the dimmed area
+  repainting every frame. `guard` is still compared by identity, because a
+  closure cannot be compared any other way; hoist it to a top-level or static
+  function to hold it still.
+* **The default overlay changed shape.** `ScannerOverlayStyle()` now defaults
+  to the band the 1D modes use rather than the previous 0.85 × 330 window, and
+  `forMode` picks `squareCutOut` for 2D modes instead of varying the
+  measurements. The measurements match the OMNI mobile app, so the two framings
+  agree. Callers who passed their own values are unaffected.
+
 ## 2.1.0
 
 Performance work on the live preview, plus the knobs to tune it. No breaking
