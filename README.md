@@ -86,6 +86,8 @@ OmniWebScanner(
 |---|---|
 | `onDetect` | Called with each confirmed `BarcodeResult`. |
 | `onError` | Called with a typed `ScannerFailure` when the scanner stops. |
+| `onRawDecode` | Called with every decode the engine produced, with no validation, confirmation or cooldown applied. See below. |
+| `onReject` | Called with a `ScanRejection` naming the rule that discarded a decode. See below. |
 | `scanMode` | `barcode`, `qrCode` or `all`. Drives overlay shape, format hints, camera and validation defaults. |
 | `engine` | `zxing` (default), `native` or `auto`. |
 | `validation` | Rules a decode must pass. See below. |
@@ -115,6 +117,35 @@ OmniWebScanner(
 
 Presets: `ScanValidation.none` (emit on first decode), the per-mode default,
 and `ScanValidation.strict` (three confirmations).
+
+### Seeing what the engine actually returned
+
+`onDetect` gives you the reads the package trusts. Two callbacks give you the
+ones it does not, which is what you need when a code that should scan does not:
+a scanner rejecting every frame raises no `ScannerFailure` and looks exactly
+like one that is not decoding at all.
+
+```dart
+OmniWebScanner(
+  // Every decode, with nothing applied: no checksum check, no format filter,
+  // no confirmation streak, no cooldown. A code held in frame arrives once per
+  // decoded frame, so treat this as a stream — do not setState from it.
+  onRawDecode: (decode) {
+    print('${decode.value} — engine said "${decode.rawFormat}"');
+  },
+  // Only the decodes validation threw away, with the rule that did it.
+  onReject: (rejection) {
+    print('${rejection.reason.name}: ${rejection.message}');
+  },
+  onDetect: handleResult,
+)
+```
+
+`RawDecode.rawFormat` is the symbology name exactly as the engine spelled it,
+before `BarcodeFormat.parse` normalises it — the field to read when
+`decode.format` comes back as `BarcodeFormat.unknown`, since that value cannot
+otherwise distinguish a symbology this package does not model from a name
+nothing could parse.
 
 ### Camera selection
 

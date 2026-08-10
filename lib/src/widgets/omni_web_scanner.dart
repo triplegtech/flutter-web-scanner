@@ -10,6 +10,8 @@ import 'package:omni_qrcode_barcode_web_reader/src/models/scan_rejection.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/scan_validation.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_failure.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_overlay_style.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/platform/scanner_platform.dart'
+    show RawDecode;
 import 'package:omni_qrcode_barcode_web_reader/src/widgets/scanner_error_view.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/widgets/scanner_overlay.dart';
 
@@ -39,6 +41,7 @@ class OmniWebScanner extends StatefulWidget {
     required this.onDetect,
     this.onError,
     this.onReject,
+    this.onRawDecode,
     this.scanMode = ScanMode.barcode,
     this.engine = ScanEngine.zxing,
     this.validation,
@@ -79,6 +82,23 @@ class OmniWebScanner extends StatefulWidget {
   /// onReject: (r) => debugPrint('$r'),
   /// ```
   final ValueChanged<ScanRejection>? onReject;
+
+  /// Called with every decode the engine produced, with nothing applied to it.
+  ///
+  /// [onDetect] gives you the reads this package trusts; this gives you all of
+  /// them. No checksum check, no [validation] filter, no confirmation streak
+  /// and no cooldown — so a code held in frame arrives once per decoded frame,
+  /// and [RawDecode.rawFormat] is the engine's own spelling of the symbology
+  /// rather than a parsed [BarcodeFormat]. Use it to inspect what the decoder
+  /// is really returning, or to apply your own rules on top.
+  ///
+  /// Fires at up to tens of calls per second, so treat it as a stream and not
+  /// as a place to rebuild from:
+  ///
+  /// ```dart
+  /// onRawDecode: (decode) => _log.add(decode),
+  /// ```
+  final ValueChanged<RawDecode>? onRawDecode;
 
   /// What to look for. Also drives the default overlay, the decoder's format
   /// hints, and the default camera and validation tuning.
@@ -183,6 +203,7 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
         onDetect: (result) => widget.onDetect(result),
         onFailure: (failure) => widget.onError?.call(failure),
         onReject: (rejection) => widget.onReject?.call(rejection),
+        onRawDecode: (decode) => widget.onRawDecode?.call(decode),
         mode: widget.scanMode,
         engine: widget.engine,
         validation: widget.validation,

@@ -35,11 +35,13 @@ void main() {
     ScanEngine engine = ScanEngine.zxing,
     ScanValidation? validation,
     CameraPreferences? preferences,
+    void Function(RawDecode)? onRawDecode,
   }) {
     return ScannerController(
       onDetect: detections.add,
       onFailure: failures.add,
       onReject: rejections.add,
+      onRawDecode: onRawDecode,
       mode: mode,
       engine: engine,
       validation: validation,
@@ -486,6 +488,66 @@ void main() {
 
       expect(detections, hasLength(1));
       expect(rejections, isEmpty);
+    });
+
+    test('hands every decode to onRawDecode untouched', () async {
+      final raw = <RawDecode>[];
+      final controller = build(
+        validation: const ScanValidation(
+          allowedFormats: {BarcodeFormat.qrCode},
+        ),
+        onRawDecode: raw.add,
+      );
+      addTearDown(controller.dispose);
+      await controller.start();
+
+      // Rejected by allowedFormats, so onDetect never sees it — which is the
+      // whole reason this callback exists.
+      platform.emitDecode(validEan, format: 'EAN_13');
+
+      expect(detections, isEmpty);
+      expect(raw.single.value, validEan);
+      expect(raw.single.rawFormat, 'EAN_13');
+      expect(raw.single.format, BarcodeFormat.ean13);
+    });
+
+    test('onRawDecode repeats a code the cooldown suppresses', () async {
+      final raw = <RawDecode>[];
+      final controller = build(onRawDecode: raw.add);
+      addTearDown(controller.dispose);
+      await controller.start();
+
+      for (var i = 0; i < 10; i++) {
+        platform.emitDecode(validEan);
+      }
+
+      // Confirmation and cooldown collapse ten frames into one detection; the
+      // raw tap is deliberately not collapsed at all.
+      expect(detections, hasLength(1));
+      expect(raw, hasLength(10));
+    });
+
+    test('onRawDecode passes an unparseable format through as-is', () async {
+      final raw = <RawDecode>[];
+      final controller = build(onRawDecode: raw.add);
+      addTearDown(controller.dispose);
+      await controller.start();
+
+      platform.emitDecode(validEan, format: 'SOMETHING_NEW');
+
+      expect(raw.single.rawFormat, 'SOMETHING_NEW');
+      expect(raw.single.format, BarcodeFormat.unknown);
+    });
+
+    test('onRawDecode is silent after dispose', () async {
+      final raw = <RawDecode>[];
+      final controller = build(onRawDecode: raw.add);
+      await controller.start();
+      controller.dispose();
+
+      platform.emitDecode(validEan);
+
+      expect(raw, isEmpty);
     });
 
     test('a restart lets the same code be read immediately', () async {

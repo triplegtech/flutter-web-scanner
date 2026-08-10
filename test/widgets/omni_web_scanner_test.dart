@@ -372,6 +372,26 @@ void main() {
       expect(detections, isEmpty);
       expect(rejections.single.reason, BarcodeRejection.formatNotAllowed);
     });
+
+    testWidgets('forwards every decode to onRawDecode', (tester) async {
+      final raw = <RawDecode>[];
+
+      await tester.pumpWidget(
+        host(OmniWebScanner(
+          onDetect: detections.add,
+          onRawDecode: raw.add,
+        )),
+      );
+      await settle(tester);
+
+      platform.emitDecode(validEan, format: 'EAN_13');
+      platform.emitDecode(validEan, format: 'EAN_13');
+
+      // Two decodes, one detection: the raw tap runs ahead of confirmation.
+      expect(detections, hasLength(1));
+      expect(raw, hasLength(2));
+      expect(raw.first.rawFormat, 'EAN_13');
+    });
   });
 
   group('failures', () {

@@ -26,6 +26,7 @@ class ScannerController extends ChangeNotifier {
     required this.onDetect,
     this.onFailure,
     this.onReject,
+    this.onRawDecode,
     this.mode = ScanMode.barcode,
     this.engine = ScanEngine.zxing,
     ScanValidation? validation,
@@ -62,6 +63,24 @@ class ScannerController extends ChangeNotifier {
   /// mode `validation` introduces and the only one that raises no
   /// [ScannerFailure]. Leave it null in production.
   final void Function(ScanRejection rejection)? onReject;
+
+  /// Called with every decode the engine produced, untouched.
+  ///
+  /// The counterpart to [onDetect], and deliberately everything [onDetect] is
+  /// not: no checksum check, no format filter, no confirmation streak and no
+  /// cooldown. A code left in frame therefore arrives once per decoded frame,
+  /// and a misread arrives next to the good reads rather than instead of them.
+  ///
+  /// That is the point — it is the only view of what the engine actually
+  /// returned, which is what a caller needs to tune [validation], to log a
+  /// payload the rules are wrongly rejecting, or to apply a policy this
+  /// package does not model. [RawDecode.rawFormat] carries the symbology name
+  /// exactly as the engine spelled it, before [BarcodeFormat.parse] normalises
+  /// it.
+  ///
+  /// Runs on the decode path at up to tens of calls per second, so keep it
+  /// cheap: an unconditional `setState` here rebuilds the tree that often.
+  final void Function(RawDecode decode)? onRawDecode;
 
   final ScanMode mode;
   final ScanEngine engine;
@@ -253,6 +272,10 @@ class ScannerController extends ChangeNotifier {
   /// Runs a raw decode through validation and confirmation.
   void _handleDecode(RawDecode decode) {
     if (_disposed) return;
+
+    // Handed over before the pipeline touches it, so a caller sees the same
+    // reads the rules are about to judge — including the ones they discard.
+    onRawDecode?.call(decode);
 
     final decision = _stabilizer.offer(decode.value, decode.format);
     switch (decision) {
