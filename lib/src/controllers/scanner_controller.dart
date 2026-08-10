@@ -10,6 +10,7 @@ import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_mode.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/barcode_result.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/camera_model.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/camera_preferences.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/models/scan_rejection.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/scan_validation.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_failure.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/platform/scanner_platform.dart';
@@ -24,6 +25,8 @@ class ScannerController extends ChangeNotifier {
   ScannerController({
     required this.onDetect,
     this.onFailure,
+    this.onReject,
+    this.onRawDecode,
     this.mode = ScanMode.barcode,
     this.engine = ScanEngine.zxing,
     ScanValidation? validation,
@@ -31,12 +34,11 @@ class ScannerController extends ChangeNotifier {
     ScannerPlatform? platform,
     DateTime Function()? clock,
     String? instanceId,
-  })  : validation = validation ?? ScanValidation.forMode(mode),
-        preferences = preferences ?? CameraPreferences.forMode(mode),
+  })  : preferences = preferences ?? CameraPreferences.forMode(mode),
         _platform = platform ?? ScannerPlatformResolver.instance,
         id = instanceId ?? 'omni-${_instanceCounter++}' {
     _stabilizer = DetectionStabilizer(
-      validation: this.validation,
+      validation: validation ?? ScanValidation.forMode(mode),
       clock: clock,
     );
     _platform.registerView(viewId: viewId, containerId: containerId);
@@ -54,10 +56,49 @@ class ScannerController extends ChangeNotifier {
   final void Function(BarcodeResult result) onDetect;
   final void Function(ScannerFailure failure)? onFailure;
 
+  /// Called for each decode that validation discarded.
+  ///
+  /// Fires many times per second during normal aiming, so it is opt-in and
+  /// meant for diagnosing a scanner that decodes but never emits — the failure
+  /// mode `validation` introduces and the only one that raises no
+  /// [ScannerFailure]. Leave it null in production.
+  final void Function(ScanRejection rejection)? onReject;
+
+  /// Called with every decode the engine produced, untouched.
+  ///
+  /// The counterpart to [onDetect], and deliberately everything [onDetect] is
+  /// not: no checksum check, no format filter, no confirmation streak and no
+  /// cooldown. A code left in frame therefore arrives once per decoded frame,
+  /// and a misread arrives next to the good reads rather than instead of them.
+  ///
+  /// That is the point — it is the only view of what the engine actually
+  /// returned, which is what a caller needs to tune [validation], to log a
+  /// payload the rules are wrongly rejecting, or to apply a policy this
+  /// package does not model. [RawDecode.rawFormat] carries the symbology name
+  /// exactly as the engine spelled it, before [BarcodeFormat.parse] normalises
+  /// it.
+  ///
+  /// Runs on the decode path at up to tens of calls per second, so keep it
+  /// cheap: an unconditional `setState` here rebuilds the tree that often.
+  final void Function(RawDecode decode)? onRawDecode;
+
   final ScanMode mode;
   final ScanEngine engine;
-  final ScanValidation validation;
   final CameraPreferences preferences;
+
+  /// Rules a raw decode must pass before reaching [onDetect].
+  ///
+  /// Unlike [mode], [engine] and [preferences], this is not baked into the
+  /// camera session: it is applied downstream of the decoder, so it can be
+  /// replaced on a live scanner without reopening the stream. That matters for
+  /// [ScanValidation.guard] in particular — a closure written inside a build
+  /// method is a new object on every rebuild, and making that reopen the camera
+  /// would blank the preview after every read.
+  ///
+  /// The confirmation streak and cooldowns survive the swap, so new rules
+  /// cannot resurface a code that was just emitted.
+  ScanValidation get validation => _stabilizer.validation;
+  set validation(ScanValidation value) => _stabilizer.validation = value;
 
   final ScannerPlatform _platform;
   late final DetectionStabilizer _stabilizer;
@@ -232,15 +273,28 @@ class ScannerController extends ChangeNotifier {
   void _handleDecode(RawDecode decode) {
     if (_disposed) return;
 
+    // Handed over before the pipeline touches it, so a caller sees the same
+    // reads the rules are about to judge — including the ones they discard.
+    onRawDecode?.call(decode);
+
     final decision = _stabilizer.offer(decode.value, decode.format);
     switch (decision) {
       case StabilizerEmit(:final result):
         onDetect(result.copyWith(rawFormat: decode.rawFormat));
+      case StabilizerRejected(:final rejection):
+        onReject?.call(
+          ScanRejection(
+            value: decode.value,
+            format: decode.format,
+            rawFormat: decode.rawFormat,
+            reason: rejection.reason,
+            message: rejection.message,
+          ),
+        );
       case StabilizerPending():
       case StabilizerSuppressed():
-      case StabilizerRejected():
-        // Every non-emitting outcome is expected many times per second and is
-        // not worth surfacing.
+        // Both are expected many times per second on the way to a good read,
+        // and neither means anything is wrong.
         break;
     }
   }

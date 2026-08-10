@@ -63,7 +63,15 @@ class DetectionStabilizer {
     DateTime Function()? clock,
   }) : _clock = clock ?? DateTime.now;
 
-  final ScanValidation validation;
+  /// Rules every offered decode is measured against.
+  ///
+  /// Replaceable while decodes are arriving, and read fresh on each [offer], so
+  /// a caller who rebuilds their [ScanValidation] does not have to restart the
+  /// camera to change the rules. Streak and cooldown state is deliberately
+  /// kept: swapping rules is not a restart, and a code emitted a moment ago
+  /// must stay suppressed across one.
+  ScanValidation validation;
+
   final DateTime Function() _clock;
 
   String? _streakValue;

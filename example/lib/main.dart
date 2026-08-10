@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:omni_qrcode_barcode_web_reader/omni_qrcode_barcode_web_reader.dart';
+import 'package:omni_qrcode_barcode_web_reader_example/barcode_overlay_widget.dart';
 
 void main() => runApp(const ExampleApp());
 
@@ -78,13 +79,12 @@ class _ScannerDemoPageState extends State<ScannerDemoPage> {
           Expanded(
             flex: 3,
             child: OmniWebScanner(
-              // Changing the key forces a fresh session when the engine
-              // changes, since engine choice is fixed for a session's lifetime.
               key: ValueKey('$_mode-$_engine'),
               scanMode: _mode,
               engine: _engine,
               showRetryButton: true,
               onDetect: _handleDetect,
+              overlayBuilder: (context) => BarcodeOverlayWidget(),
               onError: (failure) => setState(() => _failure = failure),
             ),
           ),

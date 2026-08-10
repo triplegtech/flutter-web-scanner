@@ -84,9 +84,10 @@ class _ScannerOverlayState extends State<ScannerOverlay>
           constraints.hasBoundedHeight ? constraints.maxHeight : screen.height,
         );
 
+        final cutOut = style.cutOutSizeFor(size);
         final shape = ScannerOverlayShape(
-          cutOutWidth: size.width * style.cutOutWidthFactor,
-          cutOutHeight: style.cutOutHeight,
+          cutOutWidth: cutOut.width,
+          cutOutHeight: cutOut.height,
           cutOutBottomOffset: style.cutOutBottomOffset,
           borderColor: style.borderColor,
           borderLength: style.borderLength,

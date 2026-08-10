@@ -6,9 +6,12 @@ import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_mode.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/l10n/scanner_localizations.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/barcode_result.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/camera_preferences.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/models/scan_rejection.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/scan_validation.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_failure.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_overlay_style.dart';
+import 'package:omni_qrcode_barcode_web_reader/src/platform/scanner_platform.dart'
+    show RawDecode;
 import 'package:omni_qrcode_barcode_web_reader/src/widgets/scanner_error_view.dart';
 import 'package:omni_qrcode_barcode_web_reader/src/widgets/scanner_overlay.dart';
 
@@ -37,6 +40,8 @@ class OmniWebScanner extends StatefulWidget {
     super.key,
     required this.onDetect,
     this.onError,
+    this.onReject,
+    this.onRawDecode,
     this.scanMode = ScanMode.barcode,
     this.engine = ScanEngine.zxing,
     this.validation,
@@ -65,6 +70,36 @@ class OmniWebScanner extends StatefulWidget {
   /// callers can branch on [ScannerFailureKind].
   final ValueChanged<ScannerFailure>? onError;
 
+  /// Called for each decode [validation] discarded, with the rule that
+  /// rejected it.
+  ///
+  /// A scanner that decodes but never emits raises no [ScannerFailure] and
+  /// looks exactly like one that is not decoding at all; this is what tells
+  /// the two apart. Expect it many times per second while the user is aiming,
+  /// so use it to diagnose and leave it null otherwise.
+  ///
+  /// ```dart
+  /// onReject: (r) => debugPrint('$r'),
+  /// ```
+  final ValueChanged<ScanRejection>? onReject;
+
+  /// Called with every decode the engine produced, with nothing applied to it.
+  ///
+  /// [onDetect] gives you the reads this package trusts; this gives you all of
+  /// them. No checksum check, no [validation] filter, no confirmation streak
+  /// and no cooldown — so a code held in frame arrives once per decoded frame,
+  /// and [RawDecode.rawFormat] is the engine's own spelling of the symbology
+  /// rather than a parsed [BarcodeFormat]. Use it to inspect what the decoder
+  /// is really returning, or to apply your own rules on top.
+  ///
+  /// Fires at up to tens of calls per second, so treat it as a stream and not
+  /// as a place to rebuild from:
+  ///
+  /// ```dart
+  /// onRawDecode: (decode) => _log.add(decode),
+  /// ```
+  final ValueChanged<RawDecode>? onRawDecode;
+
   /// What to look for. Also drives the default overlay, the decoder's format
   /// hints, and the default camera and validation tuning.
   final ScanMode scanMode;
@@ -78,10 +113,34 @@ class OmniWebScanner extends StatefulWidget {
 
   /// Rules a decode must pass before reaching [onDetect]. Defaults to
   /// [ScanValidation.forMode].
+  ///
+  /// Supplying one *replaces* that preset rather than adding to it. Build on
+  /// it instead of around it:
+  ///
+  /// ```dart
+  /// validation: ScanValidation.forMode(ScanMode.barcode).copyWith(minLength: 8)
+  /// ```
+  ///
+  /// Safe to rebuild on every frame, including a [ScanValidation.guard] written
+  /// inline: changing this hands the new rules to the live scanner instead of
+  /// reopening the camera.
   final ScanValidation? validation;
 
-  /// How the camera is chosen and configured. Defaults to
-  /// [CameraPreferences.forMode].
+  /// How the camera is chosen and configured, and how hard the decoder works.
+  /// Defaults to [CameraPreferences.forMode].
+  ///
+  /// Supplying one *replaces* that preset rather than adding to it, so a bare
+  /// `CameraPreferences()` in [ScanMode.barcode] silently gives up everything
+  /// the mode had tuned: the close-focusing lens ([ScanDistance.near]), the
+  /// band-shaped decode region, and — most expensively — the `tryHarder: false`
+  /// that keeps ZXing's 1D reader off every row of every frame. On a phone the
+  /// difference is a scanner that reads and one that does not. Start from the
+  /// preset:
+  ///
+  /// ```dart
+  /// cameraPreferences:
+  ///     CameraPreferences.forMode(ScanMode.barcode).copyWith(torch: true)
+  /// ```
   final CameraPreferences? cameraPreferences;
 
   /// Appearance of the built-in overlay. Ignored when [overlayBuilder] is set.
@@ -138,8 +197,13 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
   }
 
   ScannerController _createController() => ScannerController(
-        onDetect: widget.onDetect,
-        onFailure: widget.onError,
+        // Called through `widget` rather than captured, because the controller
+        // outlives the build that created it: a callback taken by value here is
+        // frozen at that build and goes on reading whatever it closed over then.
+        onDetect: (result) => widget.onDetect(result),
+        onFailure: (failure) => widget.onError?.call(failure),
+        onReject: (rejection) => widget.onReject?.call(rejection),
+        onRawDecode: (decode) => widget.onRawDecode?.call(decode),
         mode: widget.scanMode,
         engine: widget.engine,
         validation: widget.validation,
@@ -155,15 +219,27 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
     // one has to rebuild the controller and reopen the camera.
     final needsRestart = widget.scanMode != oldWidget.scanMode ||
         widget.engine != oldWidget.engine ||
-        widget.validation != oldWidget.validation ||
         widget.cameraPreferences != oldWidget.cameraPreferences;
-    if (!needsRestart) return;
 
-    _internalController?.dispose();
-    _internalController = _createController();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _controller.start();
-    });
+    if (needsRestart) {
+      _internalController?.dispose();
+      _internalController = _createController();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _controller.start();
+      });
+      return;
+    }
+
+    // Validation is not one of them: it runs downstream of the decoder, so the
+    // live controller can simply be handed the new rules. A guard is a closure,
+    // and a closure written inside a build method is a new object every time —
+    // including on the rebuild a caller does to show the code they just
+    // scanned. Reopening the camera for that blanks the preview after every
+    // read.
+    if (widget.validation != oldWidget.validation) {
+      _internalController?.validation =
+          widget.validation ?? ScanValidation.forMode(widget.scanMode);
+    }
   }
 
   @override

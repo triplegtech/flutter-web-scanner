@@ -1,3 +1,5 @@
+import 'dart:ui' show Size;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omni_qrcode_barcode_web_reader/omni_qrcode_barcode_web_reader.dart';
 
@@ -113,6 +115,29 @@ void main() {
       expect(() => CameraPreferences(zoom: 0.5), throwsAssertionError);
     });
 
+    test('two instances describing the same camera are equal', () {
+      // OmniWebScanner reopens the camera when these compare unequal, so an
+      // instance rebuilt from the same arguments has to compare equal or the
+      // session is torn down and restarted on every rebuild.
+      expect(CameraPreferences(), CameraPreferences());
+      expect(CameraPreferences().hashCode, CameraPreferences().hashCode);
+      expect(
+        CameraPreferences.forMode(ScanMode.barcode),
+        CameraPreferences.forMode(ScanMode.barcode),
+      );
+    });
+
+    test('a differently tuned camera is not equal', () {
+      expect(
+        CameraPreferences(),
+        isNot(CameraPreferences(tryHarder: false)),
+      );
+      expect(
+        CameraPreferences(),
+        isNot(CameraPreferences.forMode(ScanMode.barcode)),
+      );
+    });
+
     test('rejects a decode region that is not a fraction of the frame', () {
       expect(() => CameraPreferences(roiWidthFactor: 0), throwsAssertionError);
       expect(
@@ -157,6 +182,31 @@ void main() {
       expect(() => ScanValidation(minLength: -1), throwsAssertionError);
     });
 
+    test('two instances describing the same rules are equal', () {
+      expect(ScanValidation(), ScanValidation());
+      expect(ScanValidation().hashCode, ScanValidation().hashCode);
+
+      // A Set compares by identity on its own, which would leave two rules
+      // allowing exactly the same formats unequal.
+      expect(
+        ScanValidation(allowedFormats: {BarcodeFormat.ean13}),
+        ScanValidation(allowedFormats: {BarcodeFormat.ean13}),
+      );
+      expect(
+        ScanValidation(allowedFormats: {BarcodeFormat.ean13}),
+        isNot(ScanValidation(allowedFormats: {BarcodeFormat.ean8})),
+      );
+    });
+
+    test('the same guard kept still leaves two rules equal', () {
+      // A closure can only be compared by identity, so a guard hoisted out of
+      // a build method holds still and one written inline does not.
+      bool guard(String value, BarcodeFormat format) => true;
+
+      expect(ScanValidation(guard: guard), ScanValidation(guard: guard));
+      expect(ScanValidation(guard: guard), isNot(ScanValidation()));
+    });
+
     test('copyWith preserves the guard it was not asked to change', () {
       bool guard(String value, BarcodeFormat format) => true;
       final validation = ScanValidation(guard: guard).copyWith(minLength: 4);
@@ -167,12 +217,46 @@ void main() {
   });
 
   group('ScannerOverlayStyle', () {
-    test('frames a linear barcode in a wide, short window', () {
+    test('frames a linear barcode in a band and a 2D code in a square', () {
       final linear = ScannerOverlayStyle.forMode(ScanMode.barcode);
       final square = ScannerOverlayStyle.forMode(ScanMode.qrCode);
 
-      expect(linear.cutOutHeight, lessThan(square.cutOutHeight));
-      expect(linear.cutOutWidthFactor, lessThan(square.cutOutWidthFactor));
+      expect(linear.squareCutOut, isFalse);
+      expect(square.squareCutOut, isTrue);
+    });
+
+    test('draws both modes with the same frame', () {
+      // The window's shape is the only thing the mode is allowed to change.
+      // Anything else diverging is what made 1.x ship two overlay widgets.
+      final linear = ScannerOverlayStyle.forMode(ScanMode.barcode);
+      final square = ScannerOverlayStyle.forMode(ScanMode.qrCode);
+
+      expect(square.borderColor, linear.borderColor);
+      expect(square.borderLength, linear.borderLength);
+      expect(square.borderWidth, linear.borderWidth);
+      expect(square.borderRadius, linear.borderRadius);
+      expect(square.overlayColor, linear.overlayColor);
+      expect(square.scanLineColor, linear.scanLineColor);
+      expect(square.showScanLine, linear.showScanLine);
+    });
+
+    test('measures a square window against the preview it has to fit', () {
+      const square = ScannerOverlayStyle(squareCutOut: true);
+
+      // Portrait: the width is the tighter axis.
+      expect(square.cutOutSizeFor(const Size(400, 800)), const Size(280, 280));
+      // Landscape: a square taken from the width would not fit the height, and
+      // the shape would clamp it back into a rectangle.
+      expect(square.cutOutSizeFor(const Size(1200, 600)), const Size(420, 420));
+    });
+
+    test('leaves the barcode window as wide as the factor allows', () {
+      const linear = ScannerOverlayStyle();
+
+      expect(
+        linear.cutOutSizeFor(const Size(400, 800)),
+        Size(400 * linear.cutOutWidthFactor, linear.cutOutHeight),
+      );
     });
 
     test('animates the scan line by default', () {
@@ -183,13 +267,25 @@ void main() {
     });
 
     test('copyWith keeps the rest of the style intact', () {
-      const style = ScannerOverlayStyle();
+      const style = ScannerOverlayStyle(squareCutOut: true);
       final quiet = style.copyWith(showScanLine: false, cutOutHeight: 200);
 
       expect(quiet.showScanLine, isFalse);
       expect(quiet.cutOutHeight, 200);
+      expect(quiet.squareCutOut, isTrue);
       expect(quiet.borderColor, style.borderColor);
       expect(quiet.overlayColor, style.overlayColor);
+    });
+
+    test('two identical styles are equal', () {
+      // The overlay rebuilds its shape from the style, and ShapeDecoration
+      // compares shapes to decide whether to repaint the dimmed area.
+      expect(ScannerOverlayStyle(), ScannerOverlayStyle());
+      expect(ScannerOverlayStyle().hashCode, ScannerOverlayStyle().hashCode);
+      expect(
+        ScannerOverlayStyle(),
+        isNot(ScannerOverlayStyle(squareCutOut: true)),
+      );
     });
 
     test('rejects a cut-out that cannot be drawn', () {

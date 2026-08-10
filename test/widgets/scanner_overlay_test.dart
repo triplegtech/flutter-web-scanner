@@ -66,7 +66,7 @@ void main() {
       // carry the window off the top edge, clipping the upper brackets away.
       await tester.pumpWidget(
         host(
-          const ScannerOverlayStyle(showScanLine: false),
+          const ScannerOverlayStyle(showScanLine: false, cutOutHeight: 330),
           height: 250,
         ),
       );
@@ -82,6 +82,45 @@ void main() {
             excludes: const <Offset>[Offset(hostWidth / 2, 120)],
           ),
       );
+    });
+  });
+
+  group('square window', () {
+    /// The window the overlay's own style carves out of the mounted host.
+    Rect windowIn(WidgetTester tester, ScannerOverlayStyle style) {
+      final overlay = tester.getRect(find.byType(ScannerOverlay));
+      final cutOut = style.cutOutSizeFor(overlay.size);
+      return ScannerOverlayShape(
+        cutOutWidth: cutOut.width,
+        cutOutHeight: cutOut.height,
+        cutOutBottomOffset: style.cutOutBottomOffset,
+        borderWidth: style.borderWidth,
+        borderLength: style.borderLength,
+        borderRadius: style.borderRadius,
+      ).windowFor(Offset.zero & overlay.size).outerRect;
+    }
+
+    testWidgets('frames a 2D code in a square, not a band', (tester) async {
+      final style = ScannerOverlayStyle.forMode(ScanMode.qrCode);
+      await tester.pumpWidget(host(style));
+
+      final window = windowIn(tester, style);
+
+      expect(window.width, closeTo(window.height, 0.01));
+    });
+
+    testWidgets('stays square on a preview wider than it is tall',
+        (tester) async {
+      // A square measured from the width alone would not fit, and the shape
+      // answers a window taller than the preview by clamping the height on its
+      // own — handing back the rectangle the square mode exists to avoid.
+      final style = ScannerOverlayStyle.forMode(ScanMode.qrCode);
+      await tester.pumpWidget(host(style, width: 900, height: 400));
+
+      final window = windowIn(tester, style);
+
+      expect(window.width, closeTo(window.height, 0.01));
+      expect(window.height, lessThan(400));
     });
   });
 
@@ -109,9 +148,10 @@ void main() {
       await tester.pumpWidget(host(style));
 
       final overlay = tester.getRect(find.byType(ScannerOverlay));
+      final cutOut = style.cutOutSizeFor(overlay.size);
       final window = ScannerOverlayShape(
-        cutOutWidth: hostWidth * style.cutOutWidthFactor,
-        cutOutHeight: style.cutOutHeight,
+        cutOutWidth: cutOut.width,
+        cutOutHeight: cutOut.height,
         cutOutBottomOffset: style.cutOutBottomOffset,
         borderWidth: style.borderWidth,
         borderLength: style.borderLength,
@@ -157,12 +197,15 @@ void main() {
   });
 
   group('ScannerOverlayStyle', () {
-    test('dims to the shade 2.0.x actually rendered', () {
-      // The shape used to apply this alpha twice, once filling a saveLayer and
-      // again compositing it back, so the screen only ever saw 0x8F. Dropping
-      // the layer for performance made the declared value real and the overlay
-      // visibly darker; the default is pinned to what users had.
-      expect(const ScannerOverlayStyle().overlayColor, const Color(0x8F000000));
+    test('dims and sweeps in the mobile app\'s colours', () {
+      // Both are read off the OMNI mobile overlay — black at 75% and Material's
+      // Colors.red — so the app and the web reader frame a code the same way.
+      // The alpha is the one that reaches the screen: the shape no longer
+      // applies it a second time through a saveLayer.
+      const style = ScannerOverlayStyle();
+
+      expect(style.overlayColor, const Color(0xBF000000));
+      expect(style.scanLineColor, const Color(0xFFF44336));
     });
   });
 

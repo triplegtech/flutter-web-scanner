@@ -199,4 +199,44 @@ class CameraPreferences {
       tryHarder: tryHarder ?? this.tryHarder,
     );
   }
+
+  // OmniWebScanner compares the preferences it was given against the previous
+  // ones to decide whether the camera has to be reopened. Without this that
+  // comparison is by identity, and `cameraPreferences: CameraPreferences()`
+  // written inside a build method — a fresh instance every rebuild — tears the
+  // session down and back up on each one, which reads as a scanner that has
+  // simply stopped decoding.
+  @override
+  bool operator ==(Object other) =>
+      other is CameraPreferences &&
+      other.distance == distance &&
+      other.idealWidth == idealWidth &&
+      other.idealHeight == idealHeight &&
+      other.idealFrameRate == idealFrameRate &&
+      other.probeCapabilities == probeCapabilities &&
+      other.maxProbedCameras == maxProbedCameras &&
+      other.continuousFocus == continuousFocus &&
+      other.zoom == zoom &&
+      other.torch == torch &&
+      other.decodeInterval == decodeInterval &&
+      other.roiWidthFactor == roiWidthFactor &&
+      other.roiHeightFactor == roiHeightFactor &&
+      other.tryHarder == tryHarder;
+
+  @override
+  int get hashCode => Object.hash(
+        distance,
+        idealWidth,
+        idealHeight,
+        idealFrameRate,
+        probeCapabilities,
+        maxProbedCameras,
+        continuousFocus,
+        zoom,
+        torch,
+        decodeInterval,
+        roiWidthFactor,
+        roiHeightFactor,
+        tryHarder,
+      );
 }

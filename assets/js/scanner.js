@@ -661,6 +661,39 @@
   }
 
   /**
+   * Resolves ZXing's numeric BarcodeFormat back to its wire name.
+   *
+   * `result.getBarcodeFormat()` returns the *ordinal* of ZXing's enum, not a
+   * name, so stringifying it directly yields "8" where Dart expects "EAN_13".
+   * Everything downstream that keys off the symbology — allowedFormats,
+   * checksum verification, BarcodeResult.format — then sees `unknown`. The
+   * native BarcodeDetector reports proper names, which is why this only ever
+   * showed up on browsers without it, iOS Safari above all.
+   *
+   * The lookup goes through the enum object rather than a hardcoded table so
+   * the ordering stays ZXing's to define. TypeScript compiles numeric enums
+   * with a reverse mapping, hence the direct index; the scan is a fallback for
+   * builds that ship only the forward direction.
+   *
+   * @param {*} Z the ZXing namespace
+   * @param {*} raw whatever getBarcodeFormat returned
+   * @returns {string} the SCREAMING_SNAKE format name, or the raw value
+   */
+  function zxingFormatName(Z, raw) {
+    if (typeof raw === 'string' && !/^\d+$/.test(raw)) return raw;
+
+    var table = Z && Z.BarcodeFormat;
+    if (table) {
+      var ordinal = Number(raw);
+      if (typeof table[ordinal] === 'string') return table[ordinal];
+      for (var name in table) {
+        if (table[name] === ordinal && !/^\d+$/.test(name)) return name;
+      }
+    }
+    return String(raw);
+  }
+
+  /**
    * Builds a ZXing reader restricted to the requested formats.
    *
    * @param {Object} config
@@ -701,6 +734,7 @@
    * @param {Object} config
    */
   function startZXingSession(session, config) {
+    var Z = zxing();
     var reader = createZXingReader(config);
     session.reader = reader;
 
@@ -723,7 +757,10 @@
       function (result, error) {
         if (session.stopped) return;
         if (result) {
-          session.onDecode(result.getText(), String(result.getBarcodeFormat()));
+          session.onDecode(
+            result.getText(),
+            zxingFormatName(Z, result.getBarcodeFormat())
+          );
           return;
         }
         // Transient errors are the normal case and must never reach onFailure.
@@ -1117,7 +1154,7 @@
         // 1.x reported 'EAN-13' here regardless of what was actually decoded.
         return ok({
           value: result.getText(),
-          format: String(result.getBarcodeFormat()),
+          format: zxingFormatName(zxing(), result.getBarcodeFormat()),
         });
       } finally {
         try {

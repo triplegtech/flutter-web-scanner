@@ -20,12 +20,14 @@ void main() {
   late _ManualClock clock;
   late List<BarcodeResult> detections;
   late List<ScannerFailure> failures;
+  late List<ScanRejection> rejections;
 
   setUp(() {
     platform = FakeScannerPlatform();
     clock = _ManualClock();
     detections = <BarcodeResult>[];
     failures = <ScannerFailure>[];
+    rejections = <ScanRejection>[];
   });
 
   ScannerController build({
@@ -33,10 +35,13 @@ void main() {
     ScanEngine engine = ScanEngine.zxing,
     ScanValidation? validation,
     CameraPreferences? preferences,
+    void Function(RawDecode)? onRawDecode,
   }) {
     return ScannerController(
       onDetect: detections.add,
       onFailure: failures.add,
+      onReject: rejections.add,
+      onRawDecode: onRawDecode,
       mode: mode,
       engine: engine,
       validation: validation,
@@ -420,6 +425,129 @@ void main() {
       platform.emitDecode(validEan);
 
       expect(detections, hasLength(2));
+    });
+
+    test('names the rule that discarded a read', () async {
+      final controller = build(
+        validation: const ScanValidation(minLength: 20),
+      );
+      addTearDown(controller.dispose);
+      await controller.start();
+
+      platform.emitDecode(validEan);
+
+      expect(detections, isEmpty);
+      expect(rejections.single.reason, BarcodeRejection.tooShort);
+      expect(rejections.single.value, validEan);
+      expect(rejections.single.message, contains('20'));
+    });
+
+    test('surfaces the engine spelling when the format did not parse',
+        () async {
+      final controller = build(
+        validation: const ScanValidation(
+          allowedFormats: {BarcodeFormat.ean13},
+        ),
+      );
+      addTearDown(controller.dispose);
+      await controller.start();
+
+      // ZXing hands back the ordinal of its format enum, not a name. Before it
+      // was mapped back in scanner.js this reached Dart as "7", parsed to
+      // `unknown`, and an allowedFormats set then rejected every single read
+      // while the preview stayed live — the exact shape of the iOS report,
+      // since Safari has no BarcodeDetector to name formats properly.
+      platform.emitDecode(validEan, format: '7');
+
+      expect(detections, isEmpty);
+      expect(rejections.single.reason, BarcodeRejection.formatNotAllowed);
+      expect(rejections.single.format, BarcodeFormat.unknown);
+      expect(rejections.single.rawFormat, '7');
+    });
+
+    test('stays quiet for a read that is merely unconfirmed', () async {
+      final controller = build();
+      addTearDown(controller.dispose);
+      await controller.start();
+
+      platform.emitDecode(validEan);
+
+      // Pending is the normal path to a good read, not a diagnosis.
+      expect(detections, isEmpty);
+      expect(rejections, isEmpty);
+    });
+
+    test('stays quiet for a code held in its cooldown', () async {
+      final controller = build();
+      addTearDown(controller.dispose);
+      await controller.start();
+
+      for (var i = 0; i < 6; i++) {
+        platform.emitDecode(validEan);
+      }
+
+      expect(detections, hasLength(1));
+      expect(rejections, isEmpty);
+    });
+
+    test('hands every decode to onRawDecode untouched', () async {
+      final raw = <RawDecode>[];
+      final controller = build(
+        validation: const ScanValidation(
+          allowedFormats: {BarcodeFormat.qrCode},
+        ),
+        onRawDecode: raw.add,
+      );
+      addTearDown(controller.dispose);
+      await controller.start();
+
+      // Rejected by allowedFormats, so onDetect never sees it — which is the
+      // whole reason this callback exists.
+      platform.emitDecode(validEan, format: 'EAN_13');
+
+      expect(detections, isEmpty);
+      expect(raw.single.value, validEan);
+      expect(raw.single.rawFormat, 'EAN_13');
+      expect(raw.single.format, BarcodeFormat.ean13);
+    });
+
+    test('onRawDecode repeats a code the cooldown suppresses', () async {
+      final raw = <RawDecode>[];
+      final controller = build(onRawDecode: raw.add);
+      addTearDown(controller.dispose);
+      await controller.start();
+
+      for (var i = 0; i < 10; i++) {
+        platform.emitDecode(validEan);
+      }
+
+      // Confirmation and cooldown collapse ten frames into one detection; the
+      // raw tap is deliberately not collapsed at all.
+      expect(detections, hasLength(1));
+      expect(raw, hasLength(10));
+    });
+
+    test('onRawDecode passes an unparseable format through as-is', () async {
+      final raw = <RawDecode>[];
+      final controller = build(onRawDecode: raw.add);
+      addTearDown(controller.dispose);
+      await controller.start();
+
+      platform.emitDecode(validEan, format: 'SOMETHING_NEW');
+
+      expect(raw.single.rawFormat, 'SOMETHING_NEW');
+      expect(raw.single.format, BarcodeFormat.unknown);
+    });
+
+    test('onRawDecode is silent after dispose', () async {
+      final raw = <RawDecode>[];
+      final controller = build(onRawDecode: raw.add);
+      await controller.start();
+      controller.dispose();
+
+      platform.emitDecode(validEan);
+
+      expect(raw, isEmpty);
     });
 
     test('a restart lets the same code be read immediately', () async {

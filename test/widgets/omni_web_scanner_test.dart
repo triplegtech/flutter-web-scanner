@@ -174,6 +174,154 @@ void main() {
       // several hundred milliseconds.
       expect(platform.startRequests, hasLength(1));
     });
+
+    testWidgets('does not reopen the camera for settings that did not change',
+        (tester) async {
+      // A caller writing `cameraPreferences: CameraPreferences()` inside build
+      // hands over a new instance on every rebuild. Compared by identity, that
+      // reads as a settings change and tears the camera down and back up each
+      // time — which on iOS Safari is slow enough that the stream never
+      // settles and nothing is ever decoded.
+      Widget scanner() => OmniWebScanner(
+            onDetect: detections.add,
+            scanMode: ScanMode.barcode,
+            // ignore: prefer_const_constructors
+            cameraPreferences: CameraPreferences(),
+            // ignore: prefer_const_constructors
+            validation: ScanValidation(),
+          );
+
+      await tester.pumpWidget(host(scanner()));
+      await settle(tester);
+      await tester.pumpWidget(host(scanner()));
+      await settle(tester);
+
+      expect(platform.startRequests, hasLength(1));
+    });
+
+    testWidgets('lets supplied preferences replace the mode preset entirely',
+        (tester) async {
+      // Not the behaviour anyone expects the first time, and the reason a bare
+      // `CameraPreferences()` stops a barcode scanner from reading: the preset
+      // it displaces is what keeps ZXing's 1D reader off every row of every
+      // frame, aims a close-focusing lens, and narrows the decode region to
+      // the band the overlay draws. Pinned here so a change to it is a
+      // deliberate one.
+      await tester.pumpWidget(
+        host(OmniWebScanner(
+          onDetect: detections.add,
+          scanMode: ScanMode.barcode,
+        )),
+      );
+      await settle(tester);
+
+      final preset = platform.startRequests.single.preferences;
+      expect(preset.tryHarder, isFalse);
+      expect(preset.distance, ScanDistance.near);
+      expect(preset.roiHeightFactor, lessThan(1.0));
+
+      platform.startRequests.clear();
+      await tester.pumpWidget(
+        host(OmniWebScanner(
+          key: const ValueKey('bare'),
+          onDetect: detections.add,
+          scanMode: ScanMode.barcode,
+          cameraPreferences: const CameraPreferences(),
+        )),
+      );
+      await settle(tester);
+
+      final bare = platform.startRequests.single.preferences;
+      expect(bare.tryHarder, isTrue);
+      expect(bare.distance, ScanDistance.auto);
+      expect(bare.roiHeightFactor, 1.0);
+    });
+
+    testWidgets('keeps the camera open when only the validation changes',
+        (tester) async {
+      // A guard is a closure, and a closure written inside build is a new
+      // object on every rebuild — including the rebuild a caller does to show
+      // the result they just scanned. Validation runs downstream of the
+      // decoder, so swapping it must not cost a camera restart; doing so blanks
+      // the preview after every single read.
+      Widget scanner() => OmniWebScanner(
+            onDetect: detections.add,
+            validation: ScanValidation(guard: (value, format) => true),
+          );
+
+      await tester.pumpWidget(host(scanner()));
+      await settle(tester);
+      await tester.pumpWidget(host(scanner()));
+      await settle(tester);
+
+      expect(platform.startRequests, hasLength(1));
+    });
+
+    testWidgets('applies the new validation without restarting', (tester) async {
+      Widget scanner({required bool accept}) => OmniWebScanner(
+            onDetect: detections.add,
+            validation: ScanValidation(
+              confirmations: 1,
+              guard: (value, format) => accept,
+            ),
+          );
+
+      await tester.pumpWidget(host(scanner(accept: false)));
+      await settle(tester);
+      platform.emitDecode(validEan);
+      await settle(tester);
+
+      expect(detections, isEmpty);
+
+      await tester.pumpWidget(host(scanner(accept: true)));
+      await settle(tester);
+      platform.emitDecode(validEan);
+      await settle(tester);
+
+      expect(detections.single.value, validEan);
+      expect(platform.startRequests, hasLength(1));
+    });
+
+    testWidgets('calls the callbacks the latest build supplied', (tester) async {
+      // The controller outlives the widget that built it, so a callback
+      // captured once is a callback that goes stale — silently, and only for
+      // callers whose closure reads something that changes.
+      final late = <BarcodeResult>[];
+
+      await tester.pumpWidget(host(OmniWebScanner(onDetect: detections.add)));
+      await settle(tester);
+
+      await tester.pumpWidget(host(OmniWebScanner(onDetect: late.add)));
+      await settle(tester);
+      platform.emitDecode(validEan);
+      platform.emitDecode(validEan);
+      await settle(tester);
+
+      expect(late.single.value, validEan);
+      expect(detections, isEmpty);
+      expect(platform.startRequests, hasLength(1));
+    });
+
+    testWidgets('reopens the camera when the preferences really change',
+        (tester) async {
+      await tester.pumpWidget(
+        host(OmniWebScanner(
+          onDetect: detections.add,
+          cameraPreferences: const CameraPreferences(),
+        )),
+      );
+      await settle(tester);
+
+      await tester.pumpWidget(
+        host(OmniWebScanner(
+          onDetect: detections.add,
+          cameraPreferences: const CameraPreferences(torch: true),
+        )),
+      );
+      await settle(tester);
+
+      expect(platform.startRequests, hasLength(2));
+    });
   });
 
   group('detections', () {
@@ -200,6 +348,49 @@ void main() {
       platform.emitDecode('https://example.com', format: 'QR_CODE');
 
       expect(detections.single.format, BarcodeFormat.qrCode);
+    });
+
+    testWidgets('forwards a discarded read to onReject', (tester) async {
+      final rejections = <ScanRejection>[];
+
+      await tester.pumpWidget(
+        host(OmniWebScanner(
+          onDetect: detections.add,
+          onReject: rejections.add,
+          validation: const ScanValidation(
+            allowedFormats: {BarcodeFormat.qrCode},
+          ),
+        )),
+      );
+      await settle(tester);
+
+      platform.emitDecode(validEan);
+
+      // Nothing else tells the caller this happened: validation rejects
+      // downstream of the session, so the scanner stays ready and no
+      // ScannerFailure is raised.
+      expect(detections, isEmpty);
+      expect(rejections.single.reason, BarcodeRejection.formatNotAllowed);
+    });
+
+    testWidgets('forwards every decode to onRawDecode', (tester) async {
+      final raw = <RawDecode>[];
+
+      await tester.pumpWidget(
+        host(OmniWebScanner(
+          onDetect: detections.add,
+          onRawDecode: raw.add,
+        )),
+      );
+      await settle(tester);
+
+      platform.emitDecode(validEan, format: 'EAN_13');
+      platform.emitDecode(validEan, format: 'EAN_13');
+
+      // Two decodes, one detection: the raw tap runs ahead of confirmation.
+      expect(detections, hasLength(1));
+      expect(raw, hasLength(2));
+      expect(raw.first.rawFormat, 'EAN_13');
     });
   });
 
