@@ -31,12 +31,11 @@ class ScannerController extends ChangeNotifier {
     ScannerPlatform? platform,
     DateTime Function()? clock,
     String? instanceId,
-  })  : validation = validation ?? ScanValidation.forMode(mode),
-        preferences = preferences ?? CameraPreferences.forMode(mode),
+  })  : preferences = preferences ?? CameraPreferences.forMode(mode),
         _platform = platform ?? ScannerPlatformResolver.instance,
         id = instanceId ?? 'omni-${_instanceCounter++}' {
     _stabilizer = DetectionStabilizer(
-      validation: this.validation,
+      validation: validation ?? ScanValidation.forMode(mode),
       clock: clock,
     );
     _platform.registerView(viewId: viewId, containerId: containerId);
@@ -56,8 +55,21 @@ class ScannerController extends ChangeNotifier {
 
   final ScanMode mode;
   final ScanEngine engine;
-  final ScanValidation validation;
   final CameraPreferences preferences;
+
+  /// Rules a raw decode must pass before reaching [onDetect].
+  ///
+  /// Unlike [mode], [engine] and [preferences], this is not baked into the
+  /// camera session: it is applied downstream of the decoder, so it can be
+  /// replaced on a live scanner without reopening the stream. That matters for
+  /// [ScanValidation.guard] in particular — a closure written inside a build
+  /// method is a new object on every rebuild, and making that reopen the camera
+  /// would blank the preview after every read.
+  ///
+  /// The confirmation streak and cooldowns survive the swap, so new rules
+  /// cannot resurface a code that was just emitted.
+  ScanValidation get validation => _stabilizer.validation;
+  set validation(ScanValidation value) => _stabilizer.validation = value;
 
   final ScannerPlatform _platform;
   late final DetectionStabilizer _stabilizer;

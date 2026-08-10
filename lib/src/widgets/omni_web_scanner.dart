@@ -85,6 +85,10 @@ class OmniWebScanner extends StatefulWidget {
   /// ```dart
   /// validation: ScanValidation.forMode(ScanMode.barcode).copyWith(minLength: 8)
   /// ```
+  ///
+  /// Safe to rebuild on every frame, including a [ScanValidation.guard] written
+  /// inline: changing this hands the new rules to the live scanner instead of
+  /// reopening the camera.
   final ScanValidation? validation;
 
   /// How the camera is chosen and configured, and how hard the decoder works.
@@ -158,8 +162,11 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
   }
 
   ScannerController _createController() => ScannerController(
-        onDetect: widget.onDetect,
-        onFailure: widget.onError,
+        // Called through `widget` rather than captured, because the controller
+        // outlives the build that created it: a callback taken by value here is
+        // frozen at that build and goes on reading whatever it closed over then.
+        onDetect: (result) => widget.onDetect(result),
+        onFailure: (failure) => widget.onError?.call(failure),
         mode: widget.scanMode,
         engine: widget.engine,
         validation: widget.validation,
@@ -175,15 +182,27 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
     // one has to rebuild the controller and reopen the camera.
     final needsRestart = widget.scanMode != oldWidget.scanMode ||
         widget.engine != oldWidget.engine ||
-        widget.validation != oldWidget.validation ||
         widget.cameraPreferences != oldWidget.cameraPreferences;
-    if (!needsRestart) return;
 
-    _internalController?.dispose();
-    _internalController = _createController();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _controller.start();
-    });
+    if (needsRestart) {
+      _internalController?.dispose();
+      _internalController = _createController();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _controller.start();
+      });
+      return;
+    }
+
+    // Validation is not one of them: it runs downstream of the decoder, so the
+    // live controller can simply be handed the new rules. A guard is a closure,
+    // and a closure written inside a build method is a new object every time —
+    // including on the rebuild a caller does to show the code they just
+    // scanned. Reopening the camera for that blanks the preview after every
+    // read.
+    if (widget.validation != oldWidget.validation) {
+      _internalController?.validation =
+          widget.validation ?? ScanValidation.forMode(widget.scanMode);
+    }
   }
 
   @override

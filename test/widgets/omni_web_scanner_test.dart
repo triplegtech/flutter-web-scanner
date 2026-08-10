@@ -237,6 +237,71 @@ void main() {
       expect(bare.roiHeightFactor, 1.0);
     });
 
+    testWidgets('keeps the camera open when only the validation changes',
+        (tester) async {
+      // A guard is a closure, and a closure written inside build is a new
+      // object on every rebuild — including the rebuild a caller does to show
+      // the result they just scanned. Validation runs downstream of the
+      // decoder, so swapping it must not cost a camera restart; doing so blanks
+      // the preview after every single read.
+      Widget scanner() => OmniWebScanner(
+            onDetect: detections.add,
+            validation: ScanValidation(guard: (value, format) => true),
+          );
+
+      await tester.pumpWidget(host(scanner()));
+      await settle(tester);
+      await tester.pumpWidget(host(scanner()));
+      await settle(tester);
+
+      expect(platform.startRequests, hasLength(1));
+    });
+
+    testWidgets('applies the new validation without restarting', (tester) async {
+      Widget scanner({required bool accept}) => OmniWebScanner(
+            onDetect: detections.add,
+            validation: ScanValidation(
+              confirmations: 1,
+              guard: (value, format) => accept,
+            ),
+          );
+
+      await tester.pumpWidget(host(scanner(accept: false)));
+      await settle(tester);
+      platform.emitDecode(validEan);
+      await settle(tester);
+
+      expect(detections, isEmpty);
+
+      await tester.pumpWidget(host(scanner(accept: true)));
+      await settle(tester);
+      platform.emitDecode(validEan);
+      await settle(tester);
+
+      expect(detections.single.value, validEan);
+      expect(platform.startRequests, hasLength(1));
+    });
+
+    testWidgets('calls the callbacks the latest build supplied', (tester) async {
+      // The controller outlives the widget that built it, so a callback
+      // captured once is a callback that goes stale — silently, and only for
+      // callers whose closure reads something that changes.
+      final late = <BarcodeResult>[];
+
+      await tester.pumpWidget(host(OmniWebScanner(onDetect: detections.add)));
+      await settle(tester);
+
+      await tester.pumpWidget(host(OmniWebScanner(onDetect: late.add)));
+      await settle(tester);
+      platform.emitDecode(validEan);
+      platform.emitDecode(validEan);
+      await settle(tester);
+
+      expect(late.single.value, validEan);
+      expect(detections, isEmpty);
+      expect(platform.startRequests, hasLength(1));
+    });
+
     testWidgets('reopens the camera when the preferences really change',
         (tester) async {
       await tester.pumpWidget(
