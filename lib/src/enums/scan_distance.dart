@@ -35,5 +35,5 @@ enum ScanDistance {
   ///
   /// Requires capability probing to make an informed choice; without it this
   /// behaves like [normal].
-  auto;
+  auto,
 }

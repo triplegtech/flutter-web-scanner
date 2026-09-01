@@ -1,19 +1,19 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omni_qrcode_barcode_web_reader/omni_qrcode_barcode_web_reader.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/platform/scanner_platform_stub.dart';
+import 'package:flutter_web_scanner/flutter_web_scanner.dart';
+import 'package:flutter_web_scanner/src/platform/scanner_platform_stub.dart';
 
 import '../fakes/fake_scanner_platform.dart';
 
 void main() {
   Matcher throwsUnsupported() => throwsA(
-        isA<ScannerFailure>().having(
-          (failure) => failure.kind,
-          'kind',
-          ScannerFailureKind.unsupportedPlatform,
-        ),
-      );
+    isA<ScannerFailure>().having(
+      (failure) => failure.kind,
+      'kind',
+      ScannerFailureKind.unsupportedPlatform,
+    ),
+  );
 
   group('EngineAvailability.resolve', () {
     const both = EngineAvailability(
@@ -51,32 +51,38 @@ void main() {
       expect(both.resolve(ScanEngine.native), ScanEngine.native);
     });
 
-    test('an explicit choice fails loudly rather than silently substituting',
-        () {
-      // Silently swapping engines would change which symbologies decode and
-      // how fast, with no way for the caller to find out.
-      expect(
-        () => zxingOnly.resolve(ScanEngine.native),
-        throwsA(isA<ScannerFailure>().having(
-          (failure) => failure.kind,
-          'kind',
-          ScannerFailureKind.engineUnavailable,
-        )),
-      );
-      expect(
-        () => nativeOnly.resolve(ScanEngine.zxing),
-        throwsA(isA<ScannerFailure>()),
-      );
-    });
+    test(
+      'an explicit choice fails loudly rather than silently substituting',
+      () {
+        // Silently swapping engines would change which symbologies decode and
+        // how fast, with no way for the caller to find out.
+        expect(
+          () => zxingOnly.resolve(ScanEngine.native),
+          throwsA(
+            isA<ScannerFailure>().having(
+              (failure) => failure.kind,
+              'kind',
+              ScannerFailureKind.engineUnavailable,
+            ),
+          ),
+        );
+        expect(
+          () => nativeOnly.resolve(ScanEngine.zxing),
+          throwsA(isA<ScannerFailure>()),
+        );
+      },
+    );
 
     test('auto fails when the page loaded no engine at all', () {
       expect(
         () => neither.resolve(ScanEngine.auto),
-        throwsA(isA<ScannerFailure>().having(
-          (failure) => failure.message,
-          'message',
-          contains('index.html'),
-        )),
+        throwsA(
+          isA<ScannerFailure>().having(
+            (failure) => failure.message,
+            'message',
+            contains('index.html'),
+          ),
+        ),
       );
     });
   });
@@ -98,17 +104,19 @@ void main() {
       );
     });
 
-    test('teardown and probing stay silent, so cleanup paths do not crash',
-        () async {
-      // dispose() calls stopSession without awaiting it; throwing there would
-      // surface as an unhandled async error on every non-web teardown.
-      await expectLater(platform.stopSession('any'), completes);
-      expect(await platform.probeCamera('any'), isNull);
-      expect(
-        () => platform.registerView(viewId: 'v', containerId: 'c'),
-        returnsNormally,
-      );
-    });
+    test(
+      'teardown and probing stay silent, so cleanup paths do not crash',
+      () async {
+        // dispose() calls stopSession without awaiting it; throwing there would
+        // surface as an unhandled async error on every non-web teardown.
+        await expectLater(platform.stopSession('any'), completes);
+        expect(await platform.probeCamera('any'), isNull);
+        expect(
+          () => platform.registerView(viewId: 'v', containerId: 'c'),
+          returnsNormally,
+        );
+      },
+    );
   });
 
   group('ScannerPlatformResolver', () {

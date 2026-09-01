@@ -1,4 +1,4 @@
-import 'package:omni_qrcode_barcode_web_reader/src/enums/barcode_format.dart';
+import 'package:flutter_web_scanner/src/enums/barcode_format.dart';
 
 /// What the scanner should look for.
 ///
@@ -19,25 +19,25 @@ enum ScanMode {
 
   /// Formats passed to the decoder as a hint for this mode.
   Set<BarcodeFormat> get formats => switch (this) {
-        ScanMode.qrCode => const {
-            BarcodeFormat.qrCode,
-            BarcodeFormat.dataMatrix,
-            BarcodeFormat.aztec,
-            BarcodeFormat.pdf417,
-          },
-        ScanMode.barcode => const {
-            BarcodeFormat.ean13,
-            BarcodeFormat.ean8,
-            BarcodeFormat.upcA,
-            BarcodeFormat.upcE,
-            BarcodeFormat.code128,
-            BarcodeFormat.code39,
-            BarcodeFormat.code93,
-            BarcodeFormat.itf,
-            BarcodeFormat.codabar,
-          },
-        ScanMode.all => BarcodeFormat.decodable,
-      };
+    ScanMode.qrCode => const {
+      BarcodeFormat.qrCode,
+      BarcodeFormat.dataMatrix,
+      BarcodeFormat.aztec,
+      BarcodeFormat.pdf417,
+    },
+    ScanMode.barcode => const {
+      BarcodeFormat.ean13,
+      BarcodeFormat.ean8,
+      BarcodeFormat.upcA,
+      BarcodeFormat.upcE,
+      BarcodeFormat.code128,
+      BarcodeFormat.code39,
+      BarcodeFormat.code93,
+      BarcodeFormat.itf,
+      BarcodeFormat.codabar,
+    },
+    ScanMode.all => BarcodeFormat.decodable,
+  };
 
   /// Whether this mode is dominated by 1D symbologies.
   ///

@@ -15,17 +15,18 @@ class ScannerOverlayShape extends ShapeBorder {
     double? cutOutWidth,
     double? cutOutHeight,
     this.cutOutBottomOffset = 0,
-  })  : cutOutWidth = cutOutWidth ?? cutOutSize ?? 250,
-        cutOutHeight = cutOutHeight ?? cutOutSize ?? 250 {
+  }) : cutOutWidth = cutOutWidth ?? cutOutSize ?? 250,
+       cutOutHeight = cutOutHeight ?? cutOutSize ?? 250 {
     assert(
       borderLength <=
           min(this.cutOutWidth, this.cutOutHeight) / 2 + borderWidth * 2,
       "Border can't be larger than ${min(this.cutOutWidth, this.cutOutHeight) / 2 + borderWidth * 2}",
     );
     assert(
-        (cutOutWidth == null && cutOutHeight == null) ||
-            (cutOutSize == null && cutOutWidth != null && cutOutHeight != null),
-        'Use only cutOutWidth and cutOutHeight or only cutOutSize');
+      (cutOutWidth == null && cutOutHeight == null) ||
+          (cutOutSize == null && cutOutWidth != null && cutOutHeight != null),
+      'Use only cutOutWidth and cutOutHeight or only cutOutSize',
+    );
   }
 
   final Color borderColor;
@@ -59,10 +60,12 @@ class ScannerOverlayShape extends ShapeBorder {
   /// clamped to fit, which is exactly the case nobody checks by eye.
   RRect windowFor(Rect rect) {
     final borderOffset = borderWidth / 2;
-    final width =
-        cutOutWidth < rect.width ? cutOutWidth : rect.width - borderOffset;
-    final height =
-        cutOutHeight < rect.height ? cutOutHeight : rect.height - borderOffset;
+    final width = cutOutWidth < rect.width
+        ? cutOutWidth
+        : rect.width - borderOffset;
+    final height = cutOutHeight < rect.height
+        ? cutOutHeight
+        : rect.height - borderOffset;
 
     final size = Size(width - borderOffset * 2, height - borderOffset * 2);
     final centred = Offset(
@@ -197,15 +200,15 @@ class ScannerOverlayShape extends ShapeBorder {
 
   @override
   ShapeBorder scale(double t) => ScannerOverlayShape(
-        borderColor: borderColor,
-        borderWidth: borderWidth * t,
-        overlayColor: overlayColor,
-        borderRadius: borderRadius * t,
-        borderLength: borderLength * t,
-        cutOutWidth: cutOutWidth * t,
-        cutOutHeight: cutOutHeight * t,
-        cutOutBottomOffset: cutOutBottomOffset * t,
-      );
+    borderColor: borderColor,
+    borderWidth: borderWidth * t,
+    overlayColor: overlayColor,
+    borderRadius: borderRadius * t,
+    borderLength: borderLength * t,
+    cutOutWidth: cutOutWidth * t,
+    cutOutHeight: cutOutHeight * t,
+    cutOutBottomOffset: cutOutBottomOffset * t,
+  );
 
   // ShapeBorder does not define equality, so without this a shape rebuilt from
   // an unchanged style still compares unequal to the one it replaces and
@@ -224,13 +227,13 @@ class ScannerOverlayShape extends ShapeBorder {
 
   @override
   int get hashCode => Object.hash(
-        borderColor,
-        borderWidth,
-        overlayColor,
-        borderRadius,
-        borderLength,
-        cutOutWidth,
-        cutOutHeight,
-        cutOutBottomOffset,
-      );
+    borderColor,
+    borderWidth,
+    overlayColor,
+    borderRadius,
+    borderLength,
+    cutOutWidth,
+    cutOutHeight,
+    cutOutBottomOffset,
+  );
 }

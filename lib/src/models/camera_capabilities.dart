@@ -1,5 +1,5 @@
-import 'package:omni_qrcode_barcode_web_reader/src/enums/camera_facing.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/capability_range.dart';
+import 'package:flutter_web_scanner/src/enums/camera_facing.dart';
+import 'package:flutter_web_scanner/src/models/capability_range.dart';
 
 /// What a camera can actually do, as reported by the browser.
 ///
@@ -55,9 +55,9 @@ class CameraCapabilities {
   /// Total pixels the sensor can deliver, used to compare how much detail a
   /// lens can put on the target. `null` when frame size is unknown.
   int? get maxPixels => switch ((maxWidth, maxHeight)) {
-        (final int width, final int height) => width * height,
-        _ => null,
-      };
+    (final int width, final int height) => width * height,
+    _ => null,
+  };
 
   /// Whether the lens can focus closer than [metres].
   ///
@@ -106,7 +106,8 @@ class CameraCapabilities {
   }
 
   @override
-  String toString() => 'CameraCapabilities(facing: ${facing.name}, '
+  String toString() =>
+      'CameraCapabilities(facing: ${facing.name}, '
       'focusDistance: $focusDistance, zoom: $zoom, '
       'max: ${maxWidth}x$maxHeight, torch: $supportsTorch)';
 }

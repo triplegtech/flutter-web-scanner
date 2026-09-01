@@ -1,5 +1,5 @@
-import 'package:omni_qrcode_barcode_web_reader/src/enums/camera_facing.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/camera_capabilities.dart';
+import 'package:flutter_web_scanner/src/enums/camera_facing.dart';
+import 'package:flutter_web_scanner/src/models/camera_capabilities.dart';
 
 /// A video input device reported by `navigator.mediaDevices.enumerateDevices`.
 class CameraModel {
@@ -72,6 +72,7 @@ class CameraModel {
   int get hashCode => Object.hash(deviceId, label, groupId);
 
   @override
-  String toString() => 'CameraModel(deviceId: $deviceId, label: $label, '
+  String toString() =>
+      'CameraModel(deviceId: $deviceId, label: $label, '
       'facing: ${facing.name})';
 }

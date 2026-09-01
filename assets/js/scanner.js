@@ -1,7 +1,7 @@
 /**
- * omni_qrcode_barcode_web_reader — browser interop layer.
+ * flutter_web_scanner — browser interop layer.
  *
- * Injected at runtime by WebScannerPlatform and exposed as `window.omniScanner`.
+ * Injected at runtime by WebScannerPlatform and exposed as `window.flutterWebScanner`.
  * Every entry point resolves with a JSON envelope and never rejects:
  *
  *   {"ok": true,  "data": <payload>}
@@ -20,7 +20,7 @@
   // Re-injection happens on hot restart. Redefining the namespace would orphan
   // the sessions the previous closure still owns, so bail out when a compatible
   // build is already installed.
-  if (window.omniScanner && window.omniScanner.version === VERSION) {
+  if (window.flutterWebScanner && window.flutterWebScanner.version === VERSION) {
     return;
   }
 
@@ -32,15 +32,15 @@
    * Camera selection and constraint negotiation can only be debugged against
    * real hardware, usually through a browser console on someone else's phone.
    * Logging stays available but silent until switched on with
-   * `window.omniScanner.debug = true`.
+   * `window.flutterWebScanner.debug = true`.
    *
    * @param {string} message
    * @param {...*} details
    */
   function logDebug(message) {
-    if (!window.omniScanner || !window.omniScanner.debug) return;
+    if (!window.flutterWebScanner || !window.flutterWebScanner.debug) return;
     var args = Array.prototype.slice.call(arguments, 1);
-    console.debug.apply(console, ['[omniScanner] ' + message].concat(args));
+    console.debug.apply(console, ['[flutterWebScanner] ' + message].concat(args));
   }
 
   // ---------------------------------------------------------------------------
@@ -468,7 +468,7 @@
    */
   function createVideoElement(sessionId) {
     var video = document.createElement('video');
-    video.id = 'omni-video-' + sessionId;
+    video.id = 'flutter-web-scanner-video-' + sessionId;
     // Pinned to the container's box rather than sized as flow content.
     //
     // A <video> is an inline replaced element, so `height: 100%` only resolves
@@ -1174,7 +1174,7 @@
   // Public namespace
   // ---------------------------------------------------------------------------
 
-  window.omniScanner = {
+  window.flutterWebScanner = {
     version: VERSION,
     debug: false,
     probeEnvironment: probeEnvironment,

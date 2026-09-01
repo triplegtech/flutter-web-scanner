@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omni_qrcode_barcode_web_reader/omni_qrcode_barcode_web_reader.dart';
+import 'package:flutter_web_scanner/flutter_web_scanner.dart';
 
 CameraModel camera(
   String label, {
@@ -38,9 +38,11 @@ List<String> rankedLabels(
   ScanMode mode = ScanMode.barcode,
   CameraPreferences preferences = const CameraPreferences(),
 }) {
-  return CameraSelector.rank(cameras, mode: mode, preferences: preferences)
-      .map((candidate) => candidate.camera.label)
-      .toList();
+  return CameraSelector.rank(
+    cameras,
+    mode: mode,
+    preferences: preferences,
+  ).map((candidate) => candidate.camera.label).toList();
 }
 
 void main() {
@@ -154,8 +156,7 @@ void main() {
       );
     });
 
-    test(
-        'ranks a depth sensor last, since it cannot produce a decodable '
+    test('ranks a depth sensor last, since it cannot produce a decodable '
         'image', () {
       final ranked = rankedLabels([
         camera('Back TrueDepth Camera'),
@@ -169,29 +170,23 @@ void main() {
       // getUserMedia, and is fixed-focus on most Android hardware. Betting on
       // the label made barcode mode — which scans at this distance — select a
       // worse lens than QR mode did, on real Android and iOS devices.
-      final ranked = rankedLabels(
-        [camera('Back Wide Camera'), camera('Back Ultra Wide Camera')],
-        preferences: const CameraPreferences(distance: ScanDistance.near),
-      );
+      final ranked = rankedLabels([
+        camera('Back Wide Camera'),
+        camera('Back Ultra Wide Camera'),
+      ], preferences: const CameraPreferences(distance: ScanDistance.near));
       expect(ranked.first, 'Back Wide Camera');
     });
 
     test('still takes an ultra-wide measured to focus closer', () {
       // The label is not evidence; a measurement is. This is the case the
       // near-range preset exists for, and it has to keep working.
-      final ranked = rankedLabels(
-        [
-          camera(
-            'Back Wide Camera',
-            capabilities: caps(minFocusMetres: 0.10),
-          ),
-          camera(
-            'Back Ultra Wide Camera',
-            capabilities: caps(minFocusMetres: 0.02),
-          ),
-        ],
-        preferences: const CameraPreferences(distance: ScanDistance.near),
-      );
+      final ranked = rankedLabels([
+        camera('Back Wide Camera', capabilities: caps(minFocusMetres: 0.10)),
+        camera(
+          'Back Ultra Wide Camera',
+          capabilities: caps(minFocusMetres: 0.02),
+        ),
+      ], preferences: const CameraPreferences(distance: ScanDistance.near));
       expect(ranked.first, 'Back Ultra Wide Camera');
     });
 
@@ -215,40 +210,33 @@ void main() {
       );
     });
 
-    test(
-        'prefers the main lens at normal range, where ultra-wide distortion '
+    test('prefers the main lens at normal range, where ultra-wide distortion '
         'hurts 1D decoding', () {
-      final ranked = rankedLabels(
-        [camera('Back Ultra Wide Camera'), camera('Back Wide Camera')],
-        preferences: const CameraPreferences(distance: ScanDistance.normal),
-      );
+      final ranked = rankedLabels([
+        camera('Back Ultra Wide Camera'),
+        camera('Back Wide Camera'),
+      ], preferences: const CameraPreferences(distance: ScanDistance.normal));
       expect(ranked.first, 'Back Wide Camera');
     });
 
     test('prefers the main lens in auto mode when nothing is measured', () {
-      final ranked = rankedLabels(
-        [camera('Back Ultra Wide Camera'), camera('Back Wide Camera')],
-        preferences: const CameraPreferences(),
-      );
+      final ranked = rankedLabels([
+        camera('Back Ultra Wide Camera'),
+        camera('Back Wide Camera'),
+      ], preferences: const CameraPreferences());
       expect(ranked.first, 'Back Wide Camera');
     });
 
     test('lets a measured focus distance overturn the label-based guess', () {
       // The whole point of probing: the main lens looks better on paper, but
       // it physically cannot focus on a code held 5 cm away.
-      final ranked = rankedLabels(
-        [
-          camera(
-            'Back Wide Camera',
-            capabilities: caps(minFocusMetres: 0.30),
-          ),
-          camera(
-            'Back Ultra Wide Camera',
-            capabilities: caps(minFocusMetres: 0.03),
-          ),
-        ],
-        preferences: const CameraPreferences(),
-      );
+      final ranked = rankedLabels([
+        camera('Back Wide Camera', capabilities: caps(minFocusMetres: 0.30)),
+        camera(
+          'Back Ultra Wide Camera',
+          capabilities: caps(minFocusMetres: 0.03),
+        ),
+      ], preferences: const CameraPreferences());
       expect(ranked.first, 'Back Ultra Wide Camera');
     });
 
@@ -361,10 +349,7 @@ void main() {
 
     test('skips cameras whose focus distance is already known', () {
       final ranked = rank([
-        camera(
-          'Back Wide Camera',
-          capabilities: caps(minFocusMetres: 0.1),
-        ),
+        camera('Back Wide Camera', capabilities: caps(minFocusMetres: 0.1)),
         camera('Back Ultra Wide Camera'),
       ]);
       final targets = CameraSelector.probeTargets(

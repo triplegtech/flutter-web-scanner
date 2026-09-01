@@ -1,5 +1,5 @@
-name: omni_qrcode_barcode_web_reader_example
-description: "Runnable demo for omni_qrcode_barcode_web_reader."
+name: flutter_web_scanner_example
+description: "Runnable demo for flutter_web_scanner."
 publish_to: none
 version: 1.0.0
 
@@ -10,7 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  omni_qrcode_barcode_web_reader:
+  flutter_web_scanner:
     path: ../
 
 dev_dependencies:

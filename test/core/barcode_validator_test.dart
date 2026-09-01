@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omni_qrcode_barcode_web_reader/omni_qrcode_barcode_web_reader.dart';
+import 'package:flutter_web_scanner/flutter_web_scanner.dart';
 
 void main() {
   group('gtinCheckDigit', () {
@@ -59,8 +59,7 @@ void main() {
       );
     });
 
-    test(
-        'only checks ITF payloads of length 14, since shorter ITF has no '
+    test('only checks ITF payloads of length 14, since shorter ITF has no '
         'check digit', () {
       // ITF-14 with a valid check digit.
       expect(
@@ -132,10 +131,7 @@ void main() {
     test('rejects an empty payload', () {
       final outcome = check('   ', BarcodeFormat.qrCode);
       expect(outcome, isA<ValidationRejected>());
-      expect(
-        (outcome as ValidationRejected).reason,
-        BarcodeRejection.empty,
-      );
+      expect((outcome as ValidationRejected).reason, BarcodeRejection.empty);
     });
 
     test('rejects letters in a numeric-only symbology', () {
@@ -187,10 +183,7 @@ void main() {
         BarcodeFormat.qrCode,
         const ScanValidation(minLength: 5),
       );
-      expect(
-        (outcome as ValidationRejected).reason,
-        BarcodeRejection.tooShort,
-      );
+      expect((outcome as ValidationRejected).reason, BarcodeRejection.tooShort);
     });
 
     test('rejects formats outside allowedFormats', () {
@@ -226,8 +219,10 @@ void main() {
     });
 
     test('accepts the full Code 39 alphabet', () {
-      expect(check(r'AB-12. $/+%', BarcodeFormat.code39),
-          isA<ValidationAccepted>());
+      expect(
+        check(r'AB-12. $/+%', BarcodeFormat.code39),
+        isA<ValidationAccepted>(),
+      );
     });
 
     test('accepts arbitrary QR payloads including newlines', () {

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-`omni_qrcode_barcode_web_reader` — a **Flutter Web-only** pub package that scans QR codes and barcodes from the device camera (and from image bytes) by bridging Dart to the browser's `BarcodeDetector` or the ZXing-JS library. `pubspec.yaml` declares `platforms: web:`; nothing here works on mobile or desktop.
+`flutter_web_scanner` — a **Flutter Web-only** pub package that scans QR codes and barcodes from the device camera (and from image bytes) by bridging Dart to the browser's `BarcodeDetector` or the ZXing-JS library. `pubspec.yaml` declares `platforms: web:`; nothing here works on mobile or desktop.
 
 ## Commands
 
@@ -29,17 +29,21 @@ cd example && flutter build web      # the only thing that compiles the interop 
 
 The formatting check in the first job is **advisory** (`continue-on-error`). `dart format` output changes between Dart releases, so a job tracking stable will flag files formatted on the SDK floor even when nothing is wrong with them — a warning is honest, a merge block would not be. Still run `dart format .` before committing.
 
-**On a push to `main`** — i.e. when a PR lands — only the `publish` job runs. It compares `version:` in `pubspec.yaml` against the pub.dev API and does nothing unless that version is new, so ordinary merges cost one short job. When it *is* new it checks the CHANGELOG, re-runs analyze and the tests at the merge commit, publishes, then creates the `v<version>` tag and a GitHub release as a *record*. That tag is pushed with `GITHUB_TOKEN`, which by design does not start another workflow run.
+**On a push to `main`** — i.e. when a PR lands — only the `release` job runs. It asks whether `v<version>` from `pubspec.yaml` is already a tag and does nothing unless it is not, so ordinary merges cost one short job. When the version *is* new it extracts that version's section from `CHANGELOG.md` as the release body (failing if there is none), re-runs analyze and the tests at the merge commit, tags it, and creates the GitHub release. That tag is pushed with `GITHUB_TOKEN`, which by design does not start another workflow run.
 
-`publish` deliberately has no `needs:` on the three PR jobs — they are skipped on a push, and depending on a skipped job would skip `publish` too. **Branch protection on `main` is what makes the PR gates binding**; the analyze and test steps inside `publish` are the second line of defence.
+Asking git rather than pub.dev is what decouples releasing from publishing: **the package is not on pub.dev yet**, and nothing in CI publishes it. `dart pub publish --dry-run` survives in the `test` job as a layout check only.
 
-To cut a release: bump `version:` in `pubspec.yaml`, add a matching entry at the **top** of `CHANGELOG.md` (the job refuses to publish without one), and merge to `main`. Do not create tags by hand.
+`release` deliberately has no `needs:` on the three PR jobs — they are skipped on a push, and depending on a skipped job would skip `release` too. **Branch protection on `main` is what makes the PR gates binding**; the analyze and test steps inside `release` are the second line of defence.
+
+Permissions are `contents: read` at the top level, raised to `contents: write` inside `release` alone — the repository is public, so a fork's PR run must not be able to write.
+
+To cut a release: branch off `main` (`release/<version>` by convention, not enforced), bump `version:` in `pubspec.yaml`, add a matching `## <version>` entry at the **top** of `CHANGELOG.md`, and merge. The version branch stays in the repository — nothing in CI deletes it, provided GitHub's *automatically delete head branches* setting is off. Do not create tags by hand.
 
 ## Architecture
 
 Five layers. A change to scanning behaviour usually touches the top two only.
 
-1. **Widget** (`lib/src/widgets/omni_web_scanner.dart`) — the public surface. Owns nothing but presentation and the controller's lifetime.
+1. **Widget** (`lib/src/widgets/web_scanner.dart`) — the public surface. Owns nothing but presentation and the controller's lifetime.
 2. **Controller** (`lib/src/controllers/`) — camera choice, session lifecycle, the decode→validation pipeline. Holds no `BuildContext` and imports nothing browser-specific.
 3. **Core logic** (`lib/src/core/`) — pure, deterministic, no I/O: `CameraSelector`, `DetectionStabilizer`, `BarcodeValidator`, `MimeSniffer`. This is where the interesting decisions live and where most tests point.
 4. **Platform seam** (`lib/src/platform/scanner_platform.dart`) — the `ScannerPlatform` interface plus a conditional import: `scanner_platform_web.dart` on web, `scanner_platform_stub.dart` everywhere else.
@@ -50,7 +54,7 @@ Five layers. A change to scanning behaviour usually touches the top two only.
 `dart:js_interop`, `package:web` and `dart:ui_web` do not compile on the Dart VM. Without this seam `flutter test` could not even load the package. Two consequences:
 
 - **`flutter test` never exercises `scanner_platform_web.dart`.** Tests inject `FakeScannerPlatform` (`test/fakes/`), either as a constructor argument or through `ScannerPlatformResolver.instance`. The web implementation is only verified by `cd example && flutter build web`, which CI runs.
-- **Adding a JS function requires two edits**: an entry in the `window.omniScanner` object inside `assets/js/scanner.js` *and* a matching `external` binding in `lib/src/platform/scanner_interop.dart`.
+- **Adding a JS function requires two edits**: an entry in the `window.flutterWebScanner` object inside `assets/js/scanner.js` *and* a matching `external` binding in `lib/src/platform/scanner_interop.dart`.
 
 Every interop call exchanges **JSON strings**, not structured objects. That keeps `scanner_interop.dart` a flat list of primitives and pushes all field mapping into `scanner_codec.dart`, which is testable without a browser — so parsing changes belong there, not in the interop file.
 
@@ -91,7 +95,7 @@ The preview stays mounted in every state — unmounting the platform view would 
 - **No `print`.** The verbose `[JS]` logging lives in `scanner.js`, where a browser console on someone else's phone is the only instrument available.
 - **User-facing copy goes in `lib/src/l10n/scanner_localizations.dart`**, never inline in a widget. Every `ScannerFailureKind` needs copy in all three bundled languages, and a test asserts they are distinct.
 - **New failure modes get a `ScannerFailureKind`**, not a free-form string. Callers branch on the kind, and `isRetryable` decides whether a retry button appears.
-- **Public API is only what `lib/omni_qrcode_barcode_web_reader.dart` exports.** Everything under `src/` is private to consumers, so moving files is non-breaking; changing an export is not.
+- **Public API is only what `lib/flutter_web_scanner.dart` exports.** Everything under `src/` is private to consumers, so moving files is non-breaking; changing an export is not.
 
 ## Consumer setup
 
@@ -101,7 +105,7 @@ The preview stays mounted in every state — unmounting the platform view would 
 ```
 
 ```dart
-OmniWebScanner(
+WebScanner(
   onDetect: (result) => print('${result.format.name}: ${result.value}'),
   onError: (failure) => print(failure.kind.name),
 )

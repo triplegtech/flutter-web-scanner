@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omni_qrcode_barcode_web_reader/omni_qrcode_barcode_web_reader.dart';
+import 'package:flutter_web_scanner/flutter_web_scanner.dart';
 
 import '../fakes/fake_scanner_platform.dart';
 
@@ -67,9 +67,9 @@ void main() {
   }
 
   CameraCapabilities focusing(double minMetres) => CameraCapabilities(
-        facing: CameraFacing.back,
-        focusDistance: CapabilityRange(min: minMetres, max: 10),
-      );
+    facing: CameraFacing.back,
+    focusDistance: CapabilityRange(min: minMetres, max: 10),
+  );
 
   // A valid EAN-13; its last digit is the correct check digit.
   const validEan = '5901234123457';
@@ -142,18 +142,20 @@ void main() {
       expect(request.sessionId, controller.id);
     });
 
-    test('fails with noCameraFound when the browser reports no devices',
-        () async {
-      platform.cameras = const <CameraModel>[];
-      final controller = build();
-      addTearDown(controller.dispose);
+    test(
+      'fails with noCameraFound when the browser reports no devices',
+      () async {
+        platform.cameras = const <CameraModel>[];
+        final controller = build();
+        addTearDown(controller.dispose);
 
-      await controller.start();
+        await controller.start();
 
-      expect(controller.state, isA<ScannerFailed>());
-      expect(failures.single.kind, ScannerFailureKind.noCameraFound);
-      expect(platform.startRequests, isEmpty);
-    });
+        expect(controller.state, isA<ScannerFailed>());
+        expect(failures.single.kind, ScannerFailureKind.noCameraFound);
+        expect(platform.startRequests, isEmpty);
+      },
+    );
 
     test('fails with engineUnavailable when ZXing was never loaded', () async {
       platform.availability = const EngineAvailability(
@@ -186,25 +188,27 @@ void main() {
       expect((controller.state as ScannerFailed).isRetryable, isTrue);
     });
 
-    test('normalises an unclassified error instead of letting it escape',
-        () async {
-      platform.initializeError = StateError('interop blew up');
-      final controller = build();
-      addTearDown(controller.dispose);
+    test(
+      'normalises an unclassified error instead of letting it escape',
+      () async {
+        platform.initializeError = StateError('interop blew up');
+        final controller = build();
+        addTearDown(controller.dispose);
 
-      // FlutterError.reportError would otherwise fail the test; the controller
-      // reports the raw error there on purpose, for crash reporters.
-      final errors = <FlutterErrorDetails>[];
-      final previous = FlutterError.onError;
-      FlutterError.onError = errors.add;
-      addTearDown(() => FlutterError.onError = previous);
+        // FlutterError.reportError would otherwise fail the test; the controller
+        // reports the raw error there on purpose, for crash reporters.
+        final errors = <FlutterErrorDetails>[];
+        final previous = FlutterError.onError;
+        FlutterError.onError = errors.add;
+        addTearDown(() => FlutterError.onError = previous);
 
-      await controller.start();
+        await controller.start();
 
-      expect(failures.single.kind, ScannerFailureKind.startFailed);
-      expect(failures.single.cause, isStateError);
-      expect(errors, hasLength(1));
-    });
+        expect(failures.single.kind, ScannerFailureKind.startFailed);
+        expect(failures.single.cause, isStateError);
+        expect(errors, hasLength(1));
+      },
+    );
 
     test('does nothing after dispose', () async {
       final controller = build();
@@ -218,18 +222,14 @@ void main() {
   });
 
   group('camera probing', () {
-    test('probes the top candidates and re-ranks on what it measured',
-        () async {
+    test('probes the top candidates and re-ranks on what it measured', () async {
       // Label-wise the main lens wins at auto distance. Measurement reverses
       // that: it cannot focus on a code held 5 cm away and the ultra-wide can.
       platform.cameras = [
         camera('wide', 'Back Wide Camera', order: 0),
         camera('ultra', 'Back Ultra Wide Camera', order: 1),
       ];
-      platform.probeResults = {
-        'wide': focusing(0.30),
-        'ultra': focusing(0.03),
-      };
+      platform.probeResults = {'wide': focusing(0.30), 'ultra': focusing(0.03)};
       final controller = build(mode: ScanMode.qrCode);
       addTearDown(controller.dispose);
 
@@ -265,20 +265,22 @@ void main() {
       expect(controller.state, isA<ScannerReady>());
     });
 
-    test('keeps the label ranking when only some cameras could be measured',
-        () async {
-      platform.cameras = [
-        camera('wide', 'Back Wide Camera', order: 0),
-        camera('ultra', 'Back Ultra Wide Camera', order: 1),
-      ];
-      platform.probeResults = {'wide': focusing(0.03)};
-      final controller = build(mode: ScanMode.qrCode);
-      addTearDown(controller.dispose);
+    test(
+      'keeps the label ranking when only some cameras could be measured',
+      () async {
+        platform.cameras = [
+          camera('wide', 'Back Wide Camera', order: 0),
+          camera('ultra', 'Back Ultra Wide Camera', order: 1),
+        ];
+        platform.probeResults = {'wide': focusing(0.03)};
+        final controller = build(mode: ScanMode.qrCode);
+        addTearDown(controller.dispose);
 
-      await controller.start();
+        await controller.start();
 
-      expect(platform.lastRequestedDeviceId, 'wide');
-    });
+        expect(platform.lastRequestedDeviceId, 'wide');
+      },
+    );
   });
 
   group('restart and stop', () {
@@ -428,9 +430,7 @@ void main() {
     });
 
     test('names the rule that discarded a read', () async {
-      final controller = build(
-        validation: const ScanValidation(minLength: 20),
-      );
+      final controller = build(validation: const ScanValidation(minLength: 20));
       addTearDown(controller.dispose);
       await controller.start();
 
@@ -442,12 +442,9 @@ void main() {
       expect(rejections.single.message, contains('20'));
     });
 
-    test('surfaces the engine spelling when the format did not parse',
-        () async {
+    test('surfaces the engine spelling when the format did not parse', () async {
       final controller = build(
-        validation: const ScanValidation(
-          allowedFormats: {BarcodeFormat.ean13},
-        ),
+        validation: const ScanValidation(allowedFormats: {BarcodeFormat.ean13}),
       );
       addTearDown(controller.dispose);
       await controller.start();

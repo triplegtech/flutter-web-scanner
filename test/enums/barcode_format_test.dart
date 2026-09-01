@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omni_qrcode_barcode_web_reader/omni_qrcode_barcode_web_reader.dart';
+import 'package:flutter_web_scanner/flutter_web_scanner.dart';
 
 void main() {
   group('parse', () {
@@ -56,18 +56,12 @@ void main() {
   group('ScanMode.formats', () {
     test('restricts qrCode mode to 2D symbologies', () {
       expect(ScanMode.qrCode.formats, contains(BarcodeFormat.qrCode));
-      expect(
-        ScanMode.qrCode.formats,
-        isNot(contains(BarcodeFormat.ean13)),
-      );
+      expect(ScanMode.qrCode.formats, isNot(contains(BarcodeFormat.ean13)));
     });
 
     test('restricts barcode mode to 1D symbologies', () {
       expect(ScanMode.barcode.formats, contains(BarcodeFormat.ean13));
-      expect(
-        ScanMode.barcode.formats,
-        isNot(contains(BarcodeFormat.qrCode)),
-      );
+      expect(ScanMode.barcode.formats, isNot(contains(BarcodeFormat.qrCode)));
     });
 
     test('marks only barcode mode as linear', () {

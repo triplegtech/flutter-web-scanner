@@ -9,11 +9,13 @@ on:
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   # A new push to a PR makes the previous run's answer irrelevant. A run on
-  # main may be mid-publish, so those queue instead of being cancelled.
+  # main may be mid-release, so those queue instead of being cancelled.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Read-only by default, so a fork's pull_request run cannot write anything.
+# Only `release` needs more, and it asks for it itself.
 permissions:
-  contents: write
+  contents: read
 
 env:
   # Line coverage the package must not fall below.
@@ -73,6 +75,10 @@ jobs:
           if-no-files-found: warn
 
       - name: Validate package layout
+        # The package is not published to pub.dev yet, but a dry run is still
+        # the only check that the pubspec, the LICENSE and the file list would
+        # be accepted — cheap to keep passing, expensive to fix all at once on
+        # the day the first publish is attempted.
         run: dart pub publish --dry-run
 
   min-sdk:
@@ -127,57 +133,76 @@ jobs:
       - name: Build for the web
         run: flutter build web --release
 
-  publish:
-    # Releasing is a consequence of merging, not of tagging: this runs when a
-    # PR lands on main and publishes only when pubspec.yaml carries a version
-    # pub.dev does not have yet. Merges that change no version cost one short
-    # job and publish nothing.
+  release:
+    # Releasing is a consequence of merging, not of tagging: one branch per
+    # version lands on main, and the release for that version comes out of the
+    # merge. The version branch is never touched here — nothing in this
+    # workflow deletes a branch, so it stays in the repository as the record of
+    # what that version changed.
+    #
+    # The trigger is "pubspec.yaml carries a version that has no tag yet", so a
+    # merge that changes no version costs one short job and releases nothing,
+    # and re-running the workflow on an already-released commit is a no-op
+    # rather than a duplicate release.
     #
     # It deliberately does not `needs:` the jobs above — those are skipped on a
     # push, and a dependency on a skipped job would skip this one too. Their
     # guarantee comes from branch protection (the PR cannot merge red); the
     # analyze and test steps below are the second line of defence, so a direct
-    # push to main still cannot publish a broken release.
-    name: Publish to pub.dev
+    # push to main still cannot release a broken version.
+    name: Tag and release
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    # `dart pub publish` answers unusable credentials with an interactive OAuth
-    # prompt, which on a runner with no browser waits until the job is killed.
-    # A cap turns a six-hour hang into a fast, visible failure.
-    timeout-minutes: 20
+    permissions:
+      # Creating the tag and the GitHub release.
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Tags decide whether this version was already released, and the
+          # default shallow fetch brings none of them.
+          fetch-depth: 0
 
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
 
-      - name: Decide whether this version needs publishing
+      - name: Decide whether this version needs releasing
         id: version
         run: |
-          name=$(grep '^name:' pubspec.yaml | awk '{print $2}')
           version=$(grep '^version:' pubspec.yaml | awk '{print $2}')
-          echo "name=$name" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-          if curl -sf "https://pub.dev/api/packages/$name" \
-              | jq -e --arg v "$version" '.versions[] | select(.version == $v)' \
-              > /dev/null; then
-            echo "$name $version is already on pub.dev; nothing to release"
+          if git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then
+            echo "v$version is already tagged; nothing to release"
             echo "needed=false" >> "$GITHUB_OUTPUT"
           else
-            echo "$name $version is new; releasing"
+            echo "v$version has no tag yet; releasing"
             echo "needed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Verify the CHANGELOG documents this version
+      - name: Extract the release notes from the CHANGELOG
+        # The CHANGELOG is the release notes. Failing here when the section is
+        # missing is the point: a release whose body is a link to a file that
+        # does not describe it is worse than a red build.
         if: steps.version.outputs.needed == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          if ! grep -q "${{ steps.version.outputs.version }}" CHANGELOG.md; then
-            echo "::error::CHANGELOG.md has no entry for ${{ steps.version.outputs.version }}"
+          awk -v v="## $VERSION" '
+            $0 == v { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+
+          if [ ! -s release-notes.md ]; then
+            echo "::error::CHANGELOG.md has no '## $VERSION' section with content"
             exit 1
           fi
+
+          echo "Release notes for v$VERSION:"
+          cat release-notes.md
 
       - name: Install dependencies
         if: steps.version.outputs.needed == 'true'
@@ -189,53 +214,37 @@ jobs:
 
       - name: Run unit and widget tests
         # Re-run at the merge commit rather than trusting the PR's green tick:
-        # another PR may have landed in between, and this is the exact tree
-        # that goes to pub.dev.
+        # another PR may have landed in between, and this is the exact tree the
+        # tag will point at.
         if: steps.version.outputs.needed == 'true'
         run: flutter test
 
-      - name: Decode pub credentials
-        if: steps.version.outputs.needed == 'true'
-        env:
-          # Read through the environment, never interpolated into the script.
-          # `echo "${{ secrets.X }}"` splices the secret into the shell *source*
-          # before bash parses it, so every double quote in the JSON closes the
-          # string: the file lands with its quotes stripped and pub cannot read
-          # it. An env var is expanded at runtime, after parsing, so the value
-          # survives intact.
-          PUB_CREDENTIALS: ${{ secrets.PUB_CREDENTIAL_JSON }}
-        run: |
-          mkdir -p "$HOME/.config/dart"
-          printf '%s' "$PUB_CREDENTIALS" > "$HOME/.config/dart/pub-credentials.json"
-
-          # Fail here rather than in `dart pub publish`, which reacts to broken
-          # credentials by opening a login prompt instead of exiting non-zero.
-          if ! jq -e '.accessToken and .refreshToken' \
-              "$HOME/.config/dart/pub-credentials.json" > /dev/null 2>&1; then
-            echo "::error::PUB_CREDENTIAL_JSON is not a valid pub-credentials.json"
-            exit 1
-          fi
-
-      - name: Check publish warnings
-        if: steps.version.outputs.needed == 'true'
-        run: dart pub publish --dry-run
-
-      - name: Publish package
-        if: steps.version.outputs.needed == 'true'
-        run: dart pub publish --force
-
       - name: Tag the released commit
-        # A record of what was published, not a trigger: a tag pushed with
-        # GITHUB_TOKEN deliberately does not start another workflow run.
+        # A tag pushed with GITHUB_TOKEN deliberately does not start another
+        # workflow run, so this cannot trigger itself.
         if: steps.version.outputs.needed == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git tag -a "v$VERSION" -m "v$VERSION"
           git push origin "v$VERSION"
+
+      - name: Create the GitHub release
+        if: steps.version.outputs.needed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # A version carrying a pre-release suffix (3.0.0-beta.1) is marked as
+          # such, so it never becomes the repository's "latest" release.
+          case "$VERSION" in
+            *-*) prerelease=--prerelease ;;
+            *)   prerelease= ;;
+          esac
+
           gh release create "v$VERSION" \
-            --title "Release v$VERSION" \
-            --notes "See [CHANGELOG.md](CHANGELOG.md) for details."
+            --title "v$VERSION" \
+            --notes-file release-notes.md \
+            $prerelease

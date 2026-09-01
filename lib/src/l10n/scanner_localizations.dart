@@ -1,6 +1,6 @@
 import 'dart:ui' show Locale;
 
-import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_failure.dart';
+import 'package:flutter_web_scanner/src/models/scanner_failure.dart';
 
 /// User-facing copy for the scanner's error and loading states.
 ///
@@ -37,13 +37,16 @@ class ScannerLocalizations {
   final String initializing;
 
   static const ScannerLocalizations en = ScannerLocalizations(
-    permissionDenied: 'Camera access is required to scan. Please allow camera '
+    permissionDenied:
+        'Camera access is required to scan. Please allow camera '
         'access for this site in your browser settings.',
     noCameraFound: 'No camera was found on this device.',
-    cameraInUse: 'The camera is being used by another app or tab. Close it and '
+    cameraInUse:
+        'The camera is being used by another app or tab. Close it and '
         'try again.',
     overconstrained: 'This camera does not support the requested settings.',
-    engineUnavailable: 'The barcode scanning engine is unavailable in this '
+    engineUnavailable:
+        'The barcode scanning engine is unavailable in this '
         'browser.',
     insecureContext: 'The camera only works over HTTPS or on localhost.',
     unsupportedPlatform: 'The scanner is only supported on Flutter Web.',
@@ -54,13 +57,16 @@ class ScannerLocalizations {
   );
 
   static const ScannerLocalizations ptBr = ScannerLocalizations(
-    permissionDenied: 'É necessário permitir o acesso à câmera para escanear. '
+    permissionDenied:
+        'É necessário permitir o acesso à câmera para escanear. '
         'Conceda a permissão para este site nas configurações do navegador.',
     noCameraFound: 'Nenhuma câmera foi encontrada neste dispositivo.',
-    cameraInUse: 'A câmera está sendo usada por outro aplicativo ou aba. '
+    cameraInUse:
+        'A câmera está sendo usada por outro aplicativo ou aba. '
         'Feche-o e tente novamente.',
     overconstrained: 'Esta câmera não suporta as configurações solicitadas.',
-    engineUnavailable: 'O motor de leitura de códigos não está disponível '
+    engineUnavailable:
+        'O motor de leitura de códigos não está disponível '
         'neste navegador.',
     insecureContext: 'A câmera só funciona em HTTPS ou em localhost.',
     unsupportedPlatform: 'O scanner só é suportado no Flutter Web.',
@@ -71,13 +77,16 @@ class ScannerLocalizations {
   );
 
   static const ScannerLocalizations es = ScannerLocalizations(
-    permissionDenied: 'Se requiere acceso a la cámara para escanear. Permite '
+    permissionDenied:
+        'Se requiere acceso a la cámara para escanear. Permite '
         'el acceso a este sitio en la configuración del navegador.',
     noCameraFound: 'No se encontró ninguna cámara en este dispositivo.',
-    cameraInUse: 'Otra aplicación o pestaña está usando la cámara. Ciérrala e '
+    cameraInUse:
+        'Otra aplicación o pestaña está usando la cámara. Ciérrala e '
         'inténtalo de nuevo.',
     overconstrained: 'Esta cámara no admite la configuración solicitada.',
-    engineUnavailable: 'El motor de lectura de códigos no está disponible en '
+    engineUnavailable:
+        'El motor de lectura de códigos no está disponible en '
         'este navegador.',
     insecureContext: 'La cámara solo funciona con HTTPS o en localhost.',
     unsupportedPlatform: 'El escáner solo es compatible con Flutter Web.',
@@ -100,14 +109,14 @@ class ScannerLocalizations {
 
   /// Copy to display for [kind].
   String messageFor(ScannerFailureKind kind) => switch (kind) {
-        ScannerFailureKind.permissionDenied => permissionDenied,
-        ScannerFailureKind.noCameraFound => noCameraFound,
-        ScannerFailureKind.cameraInUse => cameraInUse,
-        ScannerFailureKind.overconstrained => overconstrained,
-        ScannerFailureKind.engineUnavailable => engineUnavailable,
-        ScannerFailureKind.insecureContext => insecureContext,
-        ScannerFailureKind.unsupportedPlatform => unsupportedPlatform,
-        ScannerFailureKind.startFailed => startFailed,
-        ScannerFailureKind.unknown => unknownError,
-      };
+    ScannerFailureKind.permissionDenied => permissionDenied,
+    ScannerFailureKind.noCameraFound => noCameraFound,
+    ScannerFailureKind.cameraInUse => cameraInUse,
+    ScannerFailureKind.overconstrained => overconstrained,
+    ScannerFailureKind.engineUnavailable => engineUnavailable,
+    ScannerFailureKind.insecureContext => insecureContext,
+    ScannerFailureKind.unsupportedPlatform => unsupportedPlatform,
+    ScannerFailureKind.startFailed => startFailed,
+    ScannerFailureKind.unknown => unknownError,
+  };
 }

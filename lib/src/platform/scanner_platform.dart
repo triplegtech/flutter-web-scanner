@@ -2,15 +2,15 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/widgets.dart' show Widget;
-import 'package:omni_qrcode_barcode_web_reader/src/enums/barcode_format.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_engine.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_mode.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/camera_capabilities.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/camera_model.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/camera_preferences.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_failure.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/platform/scanner_platform_stub.dart'
-    if (dart.library.js_interop) 'package:omni_qrcode_barcode_web_reader/src/platform/scanner_platform_web.dart'
+import 'package:flutter_web_scanner/src/enums/barcode_format.dart';
+import 'package:flutter_web_scanner/src/enums/scan_engine.dart';
+import 'package:flutter_web_scanner/src/enums/scan_mode.dart';
+import 'package:flutter_web_scanner/src/models/camera_capabilities.dart';
+import 'package:flutter_web_scanner/src/models/camera_model.dart';
+import 'package:flutter_web_scanner/src/models/camera_preferences.dart';
+import 'package:flutter_web_scanner/src/models/scanner_failure.dart';
+import 'package:flutter_web_scanner/src/platform/scanner_platform_stub.dart'
+    if (dart.library.js_interop) 'package:flutter_web_scanner/src/platform/scanner_platform_web.dart'
     as impl;
 
 /// An untrusted decode straight from the engine, before validation.
@@ -59,23 +59,23 @@ class EngineAvailability {
     return switch (requested) {
       ScanEngine.native when nativeSupported => ScanEngine.native,
       ScanEngine.native => throw const ScannerFailure(
-          ScannerFailureKind.engineUnavailable,
-          'BarcodeDetector is not implemented in this browser; use '
-          'ScanEngine.auto or ScanEngine.zxing',
-        ),
+        ScannerFailureKind.engineUnavailable,
+        'BarcodeDetector is not implemented in this browser; use '
+        'ScanEngine.auto or ScanEngine.zxing',
+      ),
       ScanEngine.auto when nativeSupported => ScanEngine.native,
       ScanEngine.auto when zxingLoaded => ScanEngine.zxing,
       ScanEngine.auto => throw const ScannerFailure(
-          ScannerFailureKind.engineUnavailable,
-          'Neither BarcodeDetector nor the ZXing bundle is available; add the '
-          'ZXing script tag to web/index.html',
-        ),
+        ScannerFailureKind.engineUnavailable,
+        'Neither BarcodeDetector nor the ZXing bundle is available; add the '
+        'ZXing script tag to web/index.html',
+      ),
       ScanEngine.zxing when zxingLoaded => ScanEngine.zxing,
       ScanEngine.zxing => throw const ScannerFailure(
-          ScannerFailureKind.engineUnavailable,
-          'The ZXing library was not found on window; add its script tag to '
-          'web/index.html',
-        ),
+        ScannerFailureKind.engineUnavailable,
+        'The ZXing library was not found on window; add its script tag to '
+        'web/index.html',
+      ),
     };
   }
 }
@@ -105,7 +105,8 @@ class ScanSession {
   final int? height;
 
   @override
-  String toString() => 'ScanSession(id: $id, camera: ${camera.label}, '
+  String toString() =>
+      'ScanSession(id: $id, camera: ${camera.label}, '
       'engine: ${engine.name}, size: ${width}x$height)';
 }
 

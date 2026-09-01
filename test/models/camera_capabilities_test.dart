@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omni_qrcode_barcode_web_reader/omni_qrcode_barcode_web_reader.dart';
+import 'package:flutter_web_scanner/flutter_web_scanner.dart';
 
 void main() {
   group('CapabilityRange.tryParse', () {
@@ -107,13 +107,15 @@ void main() {
 
     test('detects continuous focus support', () {
       expect(
-        const CameraCapabilities(focusModes: ['manual', 'continuous'])
-            .supportsContinuousFocus,
+        const CameraCapabilities(
+          focusModes: ['manual', 'continuous'],
+        ).supportsContinuousFocus,
         isTrue,
       );
       expect(
-        const CameraCapabilities(focusModes: ['manual'])
-            .supportsContinuousFocus,
+        const CameraCapabilities(
+          focusModes: ['manual'],
+        ).supportsContinuousFocus,
         isFalse,
       );
     });
@@ -188,8 +190,7 @@ void main() {
       expect(refined.capabilities.focusDistance?.min, 0.03);
     });
 
-    test(
-        'identity ignores capabilities, so a probe does not create a new '
+    test('identity ignores capabilities, so a probe does not create a new '
         'device', () {
       const camera = CameraModel(deviceId: 'back-1', label: 'Back Camera');
       final probed = camera.withCapabilities(
@@ -201,10 +202,7 @@ void main() {
     });
 
     test('treats a blank label as absent', () {
-      expect(
-        const CameraModel(deviceId: 'a', label: '   ').hasLabel,
-        isFalse,
-      );
+      expect(const CameraModel(deviceId: 'a', label: '   ').hasLabel, isFalse);
       expect(const CameraModel(deviceId: 'a', label: 'Cam').hasLabel, isTrue);
     });
   });

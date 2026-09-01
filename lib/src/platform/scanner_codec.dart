@@ -1,14 +1,14 @@
 import 'dart:convert';
 
-import 'package:omni_qrcode_barcode_web_reader/src/enums/camera_facing.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_engine.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_mode.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/camera_capabilities.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/camera_model.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/camera_preferences.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/capability_range.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_failure.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/platform/scanner_platform.dart';
+import 'package:flutter_web_scanner/src/enums/camera_facing.dart';
+import 'package:flutter_web_scanner/src/enums/scan_engine.dart';
+import 'package:flutter_web_scanner/src/enums/scan_mode.dart';
+import 'package:flutter_web_scanner/src/models/camera_capabilities.dart';
+import 'package:flutter_web_scanner/src/models/camera_model.dart';
+import 'package:flutter_web_scanner/src/models/camera_preferences.dart';
+import 'package:flutter_web_scanner/src/models/capability_range.dart';
+import 'package:flutter_web_scanner/src/models/scanner_failure.dart';
+import 'package:flutter_web_scanner/src/platform/scanner_platform.dart';
 
 /// Translates between Dart models and the JSON the interop layer exchanges.
 ///
@@ -80,10 +80,12 @@ abstract final class ScannerCodec {
         CameraModel(
           deviceId: deviceId,
           label: entry['label'] is String ? entry['label'] as String : '',
-          groupId:
-              entry['groupId'] is String ? entry['groupId'] as String : null,
+          groupId: entry['groupId'] is String
+              ? entry['groupId'] as String
+              : null,
           order: index,
-          capabilities: decodeCapabilities(entry['capabilities']) ??
+          capabilities:
+              decodeCapabilities(entry['capabilities']) ??
               CameraCapabilities.unknown,
         ),
       );
@@ -121,7 +123,8 @@ abstract final class ScannerCodec {
         deviceId: map['deviceId'] as String? ?? '',
         label: map['label'] as String? ?? '',
         groupId: map['groupId'] as String?,
-        capabilities: decodeCapabilities(map['capabilities']) ??
+        capabilities:
+            decodeCapabilities(map['capabilities']) ??
             CameraCapabilities.unknown,
       ),
       engine: decodeEngine(map['engine']),
@@ -223,29 +226,29 @@ abstract final class ScannerCodec {
       raw is Map ? raw.cast<String, Object?>() : const <String, Object?>{};
 
   static List<String> _asStringList(Object? raw) => switch (raw) {
-        final List list => list.whereType<String>().toList(),
-        final String single => <String>[single],
-        _ => const <String>[],
-      };
+    final List list => list.whereType<String>().toList(),
+    final String single => <String>[single],
+    _ => const <String>[],
+  };
 
   /// Reads the first entry of a capability browsers report as a list.
   ///
   /// `facingMode` is specified as a sequence but some browsers hand back a
   /// bare string, so both shapes are accepted.
   static String? _firstString(Object? raw) => switch (raw) {
-        final String single => single,
-        final List list =>
-          _firstWhereOrNull<Object?>(list, (item) => item is String) as String?,
-        _ => null,
-      };
+    final String single => single,
+    final List list =>
+      _firstWhereOrNull<Object?>(list, (item) => item is String) as String?,
+    _ => null,
+  };
 
   /// `torch` is reported as `true`, or as a list of supported values that
   /// includes `true`, depending on the browser.
   static bool _reportsTorch(Object? raw) => switch (raw) {
-        true => true,
-        final List list => list.contains(true),
-        _ => false,
-      };
+    true => true,
+    final List list => list.contains(true),
+    _ => false,
+  };
 
   /// Extracts the maximum of a `MediaSettingsRange`, or the value itself when
   /// the browser reported a plain number.

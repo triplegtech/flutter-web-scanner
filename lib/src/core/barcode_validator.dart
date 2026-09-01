@@ -1,5 +1,5 @@
-import 'package:omni_qrcode_barcode_web_reader/src/enums/barcode_format.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/scan_validation.dart';
+import 'package:flutter_web_scanner/src/enums/barcode_format.dart';
+import 'package:flutter_web_scanner/src/models/scan_validation.dart';
 
 /// Why a decoded payload was rejected.
 enum BarcodeRejection {
@@ -185,8 +185,7 @@ abstract final class BarcodeValidator {
     return switch (format) {
       BarcodeFormat.ean13 ||
       BarcodeFormat.ean8 ||
-      BarcodeFormat.upcA =>
-        _hasValidGtinCheckDigit(value),
+      BarcodeFormat.upcA => _hasValidGtinCheckDigit(value),
       BarcodeFormat.upcE => _hasValidUpcECheckDigit(value),
       // Only ITF-14 defines a check digit; other ITF lengths carry none.
       BarcodeFormat.itf => value.length != 14 || _hasValidGtinCheckDigit(value),
@@ -250,8 +249,7 @@ abstract final class BarcodeValidator {
     final manufacturerAndProduct = switch (d[5]) {
       '0' ||
       '1' ||
-      '2' =>
-        '${d.substring(0, 2)}${d[5]}0000${d.substring(2, 5)}',
+      '2' => '${d.substring(0, 2)}${d[5]}0000${d.substring(2, 5)}',
       '3' => '${d.substring(0, 3)}00000${d.substring(3, 5)}',
       '4' => '${d.substring(0, 4)}00000${d[4]}',
       _ => '${d.substring(0, 5)}0000${d[5]}',

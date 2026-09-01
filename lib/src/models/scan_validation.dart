@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart' show setEquals;
-import 'package:omni_qrcode_barcode_web_reader/src/enums/barcode_format.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_mode.dart';
+import 'package:flutter_web_scanner/src/enums/barcode_format.dart';
+import 'package:flutter_web_scanner/src/enums/scan_mode.dart';
 
 /// Signature for an application-specific check applied after the built-in ones.
 ///
@@ -22,8 +22,8 @@ class ScanValidation {
     this.minLength = 1,
     this.allowedFormats,
     this.guard,
-  })  : assert(confirmations >= 1, 'confirmations must be at least 1'),
-        assert(minLength >= 0, 'minLength cannot be negative');
+  }) : assert(confirmations >= 1, 'confirmations must be at least 1'),
+       assert(minLength >= 0, 'minLength cannot be negative');
 
   /// Verify the check digit for formats that carry one (EAN/UPC/ITF).
   ///
@@ -68,9 +68,9 @@ class ScanValidation {
   /// already trustworthy and a second confirmation only adds latency. 1D
   /// symbologies have no such protection and are confirmed twice.
   factory ScanValidation.forMode(ScanMode mode) => switch (mode) {
-        ScanMode.qrCode => const ScanValidation(confirmations: 1),
-        ScanMode.barcode || ScanMode.all => const ScanValidation(),
-      };
+    ScanMode.qrCode => const ScanValidation(confirmations: 1),
+    ScanMode.barcode || ScanMode.all => const ScanValidation(),
+  };
 
   /// Emit on first decode with no checks. Lowest latency, lowest trust.
   static const ScanValidation none = ScanValidation(
@@ -112,7 +112,7 @@ class ScanValidation {
     );
   }
 
-  // Compared by OmniWebScanner to decide whether the camera has to be
+  // Compared by WebScanner to decide whether the camera has to be
   // reopened, so an equal-but-rebuilt instance must not read as a change. See
   // the note on [CameraPreferences.==].
   //
@@ -133,16 +133,14 @@ class ScanValidation {
 
   @override
   int get hashCode => Object.hash(
-        requireChecksum,
-        confirmations,
-        confirmationWindow,
-        cooldown,
-        minLength,
-        // A Set's own hashCode is identity-based, so it would undo everything
-        // setEquals establishes above.
-        allowedFormats == null
-            ? null
-            : Object.hashAllUnordered(allowedFormats!),
-        guard,
-      );
+    requireChecksum,
+    confirmations,
+    confirmationWindow,
+    cooldown,
+    minLength,
+    // A Set's own hashCode is identity-based, so it would undo everything
+    // setEquals establishes above.
+    allowedFormats == null ? null : Object.hashAllUnordered(allowedFormats!),
+    guard,
+  );
 }

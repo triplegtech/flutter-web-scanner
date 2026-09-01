@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:omni_qrcode_barcode_web_reader/omni_qrcode_barcode_web_reader.dart';
-import 'package:omni_qrcode_barcode_web_reader_example/barcode_overlay_widget.dart';
+import 'package:flutter_web_scanner/flutter_web_scanner.dart';
+import 'package:flutter_web_scanner_example/barcode_overlay_widget.dart';
 
 void main() => runApp(const ExampleApp());
 
@@ -10,7 +10,7 @@ class ExampleApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Omni Scanner Example',
+      title: 'Web Scanner Example',
       theme: ThemeData(
         colorSchemeSeed: const Color(0xFF2E7D32),
         useMaterial3: true,
@@ -44,7 +44,7 @@ class _ScannerDemoPageState extends State<ScannerDemoPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Omni Scanner'),
+        title: const Text('Web Scanner'),
         actions: [
           PopupMenuButton<ScanEngine>(
             initialValue: _engine,
@@ -78,7 +78,7 @@ class _ScannerDemoPageState extends State<ScannerDemoPage> {
           const SizedBox(height: 8),
           Expanded(
             flex: 3,
-            child: OmniWebScanner(
+            child: WebScanner(
               key: ValueKey('$_mode-$_engine'),
               scanMode: _mode,
               engine: _engine,

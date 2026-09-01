@@ -5,11 +5,7 @@ import 'dart:math' as math;
 /// Mirrors the `MediaSettingsRange` dictionary: a closed `[min, max]` interval
 /// with an optional quantisation [step].
 class CapabilityRange {
-  const CapabilityRange({
-    required this.min,
-    required this.max,
-    this.step,
-  });
+  const CapabilityRange({required this.min, required this.max, this.step});
 
   final double min;
   final double max;

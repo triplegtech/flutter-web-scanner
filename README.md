@@ -1,6 +1,6 @@
-# Omni QR Code / Barcode Web Reader
+# Flutter Web Scanner
 
-[![pub version](https://img.shields.io/pub/v/omni_qrcode_barcode_web_reader.svg)](https://pub.dev/packages/omni_qrcode_barcode_web_reader)
+[![CI](https://github.com/triplegtech/flutter_web_scanner/actions/workflows/ci.yml/badge.svg)](https://github.com/triplegtech/flutter_web_scanner/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Flutter Platform](https://img.shields.io/badge/Platform-Web-blue)
 
@@ -39,9 +39,15 @@ from a LAN IP surfaces as `ScannerFailureKind.insecureContext`.
 
 ### 1. Install
 
+The package is not on pub.dev yet, so depend on the repository directly. Pin a
+tag rather than a branch — every release is tagged `v<version>`:
+
 ```yaml
 dependencies:
-  omni_qrcode_barcode_web_reader: ^2.1.0
+  flutter_web_scanner:
+    git:
+      url: https://github.com/triplegtech/flutter_web_scanner.git
+      ref: v3.0.0
 ```
 
 ### 2. Load a decoding engine
@@ -61,7 +67,7 @@ use — there is nothing to call before `runApp`.
 ### 3. Scan
 
 ```dart
-OmniWebScanner(
+WebScanner(
   scanMode: ScanMode.barcode,
   engine: ScanEngine.auto,
   showRetryButton: true,
@@ -80,7 +86,7 @@ OmniWebScanner(
 
 ## Configuration
 
-### `OmniWebScanner`
+### `WebScanner`
 
 | Parameter | Purpose |
 |---|---|
@@ -102,7 +108,7 @@ OmniWebScanner(
 ### Validation
 
 ```dart
-OmniWebScanner(
+WebScanner(
   validation: ScanValidation(
     requireChecksum: true,        // verify EAN/UPC/ITF check digits
     confirmations: 2,             // identical reads before emitting
@@ -126,7 +132,7 @@ a scanner rejecting every frame raises no `ScannerFailure` and looks exactly
 like one that is not decoding at all.
 
 ```dart
-OmniWebScanner(
+WebScanner(
   // Every decode, with nothing applied: no checksum check, no format filter,
   // no confirmation streak, no cooldown. A code held in frame arrives once per
   // decoded frame, so treat this as a stream — do not setState from it.
@@ -150,7 +156,7 @@ nothing could parse.
 ### Camera selection
 
 ```dart
-OmniWebScanner(
+WebScanner(
   cameraPreferences: CameraPreferences(
     distance: ScanDistance.near,  // near | normal | auto
     idealWidth: 1920,
@@ -184,11 +190,24 @@ validation, and throws `ScannerFailure` when the bytes themselves cannot be
 processed. The MIME type is sniffed from the bytes, and the symbology reported
 is the one the engine actually found.
 
+## Migrating from 2.x
+
+3.0.0 renamed the package when it was opened up; nothing else changed. Two
+find-and-replaces cover it:
+
+| 2.x | 3.x |
+|---|---|
+| `omni_qrcode_barcode_web_reader` | `flutter_web_scanner` — the package, the import and the repository. |
+| `OmniWebScanner(...)` | `WebScanner(...)` — same constructor, same parameters. |
+
+Every other exported type keeps its name, and no default, callback or
+behaviour moved.
+
 ## Migrating from 1.x
 
 | 1.x | 2.x |
 |---|---|
-| `await injectOmniWebReaderWebDependencies()` before `runApp` | Removed; injection is lazy. |
+| The pre-`runApp` dependency-injection call | Removed; injection is lazy. |
 | `onError: (String? message)` | `onError: (ScannerFailure failure)` — branch on `failure.kind`. |
 | `ScanMode.Barcode` / `ScanMode.QrCode` | `ScanMode.barcode` / `ScanMode.qrCode`, plus `ScanMode.all`. |
 | `fit` | Removed; size the scanner with `width` / `height`. |
@@ -220,6 +239,28 @@ floor, the same suite on the minimum supported SDK, and a web build of the
 example. Formatting is reported as a warning, not enforced — `dart format`
 output differs between Dart releases.
 
-Releases are automatic: merging a version bump in `pubspec.yaml` into `main`
-re-runs the tests and publishes to pub.dev, then tags the commit. Merges that
-do not change the version publish nothing.
+## Releasing
+
+One branch per version, and the release comes out of the merge:
+
+1. Branch off `main` — `release/3.1.0` reads best, but the name is not enforced.
+2. Bump `version:` in `pubspec.yaml` and add the matching `## 3.1.0` section at
+   the **top** of `CHANGELOG.md`. That section becomes the release body, so
+   write it for whoever will read the release page.
+3. Open a PR and let the gates run.
+4. Merge. CI re-runs analyze and the tests at the merge commit, tags it
+   `v3.1.0`, and creates the GitHub release from the CHANGELOG section.
+
+Merges that do not change the version release nothing — the job checks whether
+`v<version>` is already tagged and stops there — so an unrelated PR costs one
+short job. Do not create tags by hand.
+
+The version branch is meant to stay in the repository after the merge; nothing
+in CI deletes it. Keep GitHub's *Settings → General → Automatically delete head
+branches* switched **off**, or the merge will remove it for you.
+
+Publishing to pub.dev is not part of this flow yet.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

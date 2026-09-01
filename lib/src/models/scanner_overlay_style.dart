@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_mode.dart';
+import 'package:flutter_web_scanner/src/enums/scan_mode.dart';
 
 /// Appearance of the framing overlay drawn over the camera preview.
 ///
@@ -9,11 +9,11 @@ import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_mode.dart';
 /// hardcoded numbers and could not be customised at all. One parameterised
 /// style replaces both.
 ///
-/// The measurements are the ones the OMNI mobile app draws over its own
-/// scanner, so someone moving between the app and the web reader is framed by
-/// the same overlay. Both modes share every colour and bracket measurement;
-/// only the shape of the window differs, and [ScannerOverlayStyle.forMode] is
-/// what picks it.
+/// The measurements are the ones the native mobile app this package was
+/// extracted from draws over its own scanner, so someone moving between that
+/// app and the web reader is framed by the same overlay. Both modes share
+/// every colour and bracket measurement; only the shape of the window differs,
+/// and [ScannerOverlayStyle.forMode] is what picks it.
 class ScannerOverlayStyle {
   const ScannerOverlayStyle({
     this.cutOutWidthFactor = 0.7,
@@ -29,11 +29,11 @@ class ScannerOverlayStyle {
     this.scanLineWidth = 3,
     this.showScanLine = true,
     this.scanLineDuration = const Duration(seconds: 2),
-  })  : assert(
-          cutOutWidthFactor > 0 && cutOutWidthFactor <= 1,
-          'cutOutWidthFactor must be within (0, 1]',
-        ),
-        assert(cutOutHeight > 0, 'cutOutHeight must be positive');
+  }) : assert(
+         cutOutWidthFactor > 0 && cutOutWidthFactor <= 1,
+         'cutOutWidthFactor must be within (0, 1]',
+       ),
+       assert(cutOutHeight > 0, 'cutOutHeight must be positive');
 
   /// Cut-out width as a fraction of the available width.
   ///
@@ -163,18 +163,18 @@ class ScannerOverlayStyle {
 
   @override
   int get hashCode => Object.hash(
-        cutOutWidthFactor,
-        cutOutHeight,
-        squareCutOut,
-        cutOutBottomOffset,
-        borderColor,
-        borderLength,
-        borderWidth,
-        borderRadius,
-        overlayColor,
-        scanLineColor,
-        scanLineWidth,
-        showScanLine,
-        scanLineDuration,
-      );
+    cutOutWidthFactor,
+    cutOutHeight,
+    squareCutOut,
+    cutOutBottomOffset,
+    borderColor,
+    borderLength,
+    borderWidth,
+    borderRadius,
+    overlayColor,
+    scanLineColor,
+    scanLineWidth,
+    showScanLine,
+    scanLineDuration,
+  );
 }

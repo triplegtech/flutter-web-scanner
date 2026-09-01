@@ -1,3 +1,44 @@
+## 3.0.0
+
+The package is now open source under the MIT licence, and the rename that came
+with it is the only breaking change: no behaviour, no default and no other
+signature moved. Upgrading is a find-and-replace.
+
+### Breaking
+
+* **Renamed to `flutter_web_scanner`.** The package, the import and the
+  repository all drop the vendor prefix they carried while this was an internal
+  package. Update the dependency and the import:
+
+  ```yaml
+  dependencies:
+    flutter_web_scanner: ^3.0.0
+  ```
+
+  ```dart
+  import 'package:flutter_web_scanner/flutter_web_scanner.dart';
+  ```
+
+* **`OmniWebScanner` is now `WebScanner`.** Same constructor, same parameters,
+  same callbacks — the name is all that changed. Every other exported type
+  (`ScannerController`, `ScanValidation`, `CameraPreferences`, `BarcodeResult`,
+  `ScannerFailure`, …) keeps its name.
+
+* **The browser namespace is now `window.flutterWebScanner`**, and the DOM ids
+  the interop layer creates are prefixed `flutter-web-scanner-` instead of
+  `omni-`. This is internal, and only matters to code that reached into the
+  injected script directly — `window.flutterWebScanner.debug = true` is still
+  how verbose logging is switched on.
+
+### Changed
+
+* **Licensed under MIT.** The previous licence reserved all rights, which made
+  the package unusable outside the organisation that wrote it.
+* **Releases are cut from the repository, not from pub.dev.** Merging a version
+  bump into `main` now tags the commit and publishes a GitHub release whose
+  body is that version's CHANGELOG section. Publishing to pub.dev is not wired
+  up yet.
+
 ## 2.2.0
 
 Fixes a bug that made every symbology unnameable on browsers without

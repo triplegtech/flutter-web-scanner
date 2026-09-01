@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omni_qrcode_barcode_web_reader/omni_qrcode_barcode_web_reader.dart';
+import 'package:flutter_web_scanner/flutter_web_scanner.dart';
 
 import '../fakes/fake_scanner_platform.dart';
 
@@ -12,9 +12,18 @@ void main() {
 
   /// Minimal byte sequences carrying only the magic number each format is
   /// recognised by — the fake never actually decodes them.
-  final png = Uint8List.fromList(
-    [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x01],
-  );
+  final png = Uint8List.fromList([
+    0x89,
+    0x50,
+    0x4E,
+    0x47,
+    0x0D,
+    0x0A,
+    0x1A,
+    0x0A,
+    0x00,
+    0x01,
+  ]);
   final jpeg = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0, 0x00]);
   final pdf = Uint8List.fromList('%PDF-1.7'.codeUnits);
 
@@ -39,10 +48,7 @@ void main() {
 
   group('input handling', () {
     test('rejects an empty byte list', () {
-      expect(
-        () => decode(Uint8List(0)),
-        throwsA(isA<ScannerFailure>()),
-      );
+      expect(() => decode(Uint8List(0)), throwsA(isA<ScannerFailure>()));
     });
 
     test('rejects bytes that match no known image format', () {
@@ -136,19 +142,21 @@ void main() {
       expect(await decode(png), isNull);
     });
 
-    test('decodes a single frame even under a multi-confirmation preset',
-        () async {
-      platform.imageDecode = const RawDecode(
-        value: validEan,
-        rawFormat: 'EAN_13',
-      );
+    test(
+      'decodes a single frame even under a multi-confirmation preset',
+      () async {
+        platform.imageDecode = const RawDecode(
+          value: validEan,
+          rawFormat: 'EAN_13',
+        );
 
-      // A still image gets exactly one attempt, so confirmation counting would
-      // reject every image it is applied to.
-      final result = await decode(png, validation: ScanValidation.strict);
+        // A still image gets exactly one attempt, so confirmation counting would
+        // reject every image it is applied to.
+        final result = await decode(png, validation: ScanValidation.strict);
 
-      expect(result?.value, validEan);
-    });
+        expect(result?.value, validEan);
+      },
+    );
 
     test('honours a caller-supplied guard', () async {
       platform.imageDecode = const RawDecode(
@@ -172,9 +180,7 @@ void main() {
 
       final result = await decode(
         png,
-        validation: const ScanValidation(
-          allowedFormats: {BarcodeFormat.ean13},
-        ),
+        validation: const ScanValidation(allowedFormats: {BarcodeFormat.ean13}),
       );
 
       expect(result, isNull);

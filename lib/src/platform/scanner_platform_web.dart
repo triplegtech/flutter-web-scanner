@@ -5,15 +5,15 @@ import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/widgets.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_engine.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_mode.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/camera_capabilities.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/camera_model.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_failure.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/platform/scanner_codec.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/platform/scanner_interop.dart'
+import 'package:flutter_web_scanner/src/enums/scan_engine.dart';
+import 'package:flutter_web_scanner/src/enums/scan_mode.dart';
+import 'package:flutter_web_scanner/src/models/camera_capabilities.dart';
+import 'package:flutter_web_scanner/src/models/camera_model.dart';
+import 'package:flutter_web_scanner/src/models/scanner_failure.dart';
+import 'package:flutter_web_scanner/src/platform/scanner_codec.dart';
+import 'package:flutter_web_scanner/src/platform/scanner_interop.dart'
     as interop;
-import 'package:omni_qrcode_barcode_web_reader/src/platform/scanner_platform.dart';
+import 'package:flutter_web_scanner/src/platform/scanner_platform.dart';
 import 'package:web/web.dart' as web;
 
 /// Selected on web targets through the conditional import in
@@ -23,13 +23,13 @@ ScannerPlatform createScannerPlatform() => WebScannerPlatform();
 /// The real browser implementation.
 class WebScannerPlatform implements ScannerPlatform {
   /// DOM id of the injected interop script, used to make injection idempotent.
-  static const String _scriptId = 'omni-web-scanner-interop-script';
+  static const String _scriptId = 'flutter-web-scanner-interop-script';
 
   /// Global the injected script defines.
-  static const String _namespace = 'omniScanner';
+  static const String _namespace = 'flutterWebScanner';
 
   static const String _assetPath =
-      'packages/omni_qrcode_barcode_web_reader/assets/js/scanner.js';
+      'packages/flutter_web_scanner/assets/js/scanner.js';
 
   /// View ids already registered with the platform view registry.
   ///
@@ -48,13 +48,14 @@ class WebScannerPlatform implements ScannerPlatform {
     if (!globalContext.has(_namespace)) {
       throw const ScannerFailure(
         ScannerFailureKind.engineUnavailable,
-        'the interop script was injected but window.omniScanner is missing; '
+        'the interop script was injected but window.flutterWebScanner is missing; '
         'the asset may have failed to parse',
       );
     }
 
-    final availability =
-        ScannerCodec.decodeAvailability(interop.probeEnvironment());
+    final availability = ScannerCodec.decodeAvailability(
+      interop.probeEnvironment(),
+    );
 
     // getUserMedia does not exist outside a secure context, so every later
     // call would fail with a confusing "undefined is not a function".
@@ -167,7 +168,7 @@ class WebScannerPlatform implements ScannerPlatform {
   /// The script ships as an asset rather than as a tag in the host app's
   /// `index.html` so that consumers cannot end up running a version of the
   /// interop code that disagrees with the Dart bindings. Appending an inline
-  /// `<script>` executes it synchronously, so `window.omniScanner` exists by
+  /// `<script>` executes it synchronously, so `window.flutterWebScanner` exists by
   /// the time this returns.
   Future<void> _injectScript() async {
     final String code;

@@ -1,42 +1,43 @@
 import 'package:flutter/material.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/controllers/scanner_controller.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/controllers/scanner_state.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_engine.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_mode.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/l10n/scanner_localizations.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/barcode_result.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/camera_preferences.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/scan_rejection.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/scan_validation.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_failure.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_overlay_style.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/platform/scanner_platform.dart'
+import 'package:flutter_web_scanner/src/controllers/scanner_controller.dart';
+import 'package:flutter_web_scanner/src/controllers/scanner_state.dart';
+import 'package:flutter_web_scanner/src/enums/scan_engine.dart';
+import 'package:flutter_web_scanner/src/enums/scan_mode.dart';
+import 'package:flutter_web_scanner/src/l10n/scanner_localizations.dart';
+import 'package:flutter_web_scanner/src/models/barcode_result.dart';
+import 'package:flutter_web_scanner/src/models/camera_preferences.dart';
+import 'package:flutter_web_scanner/src/models/scan_rejection.dart';
+import 'package:flutter_web_scanner/src/models/scan_validation.dart';
+import 'package:flutter_web_scanner/src/models/scanner_failure.dart';
+import 'package:flutter_web_scanner/src/models/scanner_overlay_style.dart';
+import 'package:flutter_web_scanner/src/platform/scanner_platform.dart'
     show RawDecode;
-import 'package:omni_qrcode_barcode_web_reader/src/widgets/scanner_error_view.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/widgets/scanner_overlay.dart';
+import 'package:flutter_web_scanner/src/widgets/scanner_error_view.dart';
+import 'package:flutter_web_scanner/src/widgets/scanner_overlay.dart';
 
 /// Builds the widget shown when the scanner fails.
 ///
 /// [retry] is `null` when the failure cannot be recovered by retrying.
-typedef ScannerErrorBuilder = Widget Function(
-  BuildContext context,
-  ScannerFailure failure,
-  VoidCallback? retry,
-);
+typedef ScannerErrorBuilder =
+    Widget Function(
+      BuildContext context,
+      ScannerFailure failure,
+      VoidCallback? retry,
+    );
 
 /// Live camera scanner for Flutter Web.
 ///
 /// ```dart
-/// OmniWebScanner(
+/// WebScanner(
 ///   onDetect: (result) => print('${result.format.name}: ${result.value}'),
 ///   scanMode: ScanMode.barcode,
 /// )
 /// ```
 ///
-/// Call `injectOmniWebReaderWebDependencies()` before `runApp` is *not*
-/// required in 2.x — the interop script is injected lazily on first use.
-class OmniWebScanner extends StatefulWidget {
-  const OmniWebScanner({
+/// There is no setup call to make before `runApp` — the interop script is
+/// injected lazily on first use.
+class WebScanner extends StatefulWidget {
+  const WebScanner({
     super.key,
     required this.onDetect,
     this.onError,
@@ -174,10 +175,10 @@ class OmniWebScanner extends StatefulWidget {
   final ScannerController? controller;
 
   @override
-  State<OmniWebScanner> createState() => _OmniWebScannerState();
+  State<WebScanner> createState() => _WebScannerState();
 }
 
-class _OmniWebScannerState extends State<OmniWebScanner> {
+class _WebScannerState extends State<WebScanner> {
   ScannerController? _internalController;
 
   ScannerController get _controller =>
@@ -197,27 +198,28 @@ class _OmniWebScannerState extends State<OmniWebScanner> {
   }
 
   ScannerController _createController() => ScannerController(
-        // Called through `widget` rather than captured, because the controller
-        // outlives the build that created it: a callback taken by value here is
-        // frozen at that build and goes on reading whatever it closed over then.
-        onDetect: (result) => widget.onDetect(result),
-        onFailure: (failure) => widget.onError?.call(failure),
-        onReject: (rejection) => widget.onReject?.call(rejection),
-        onRawDecode: (decode) => widget.onRawDecode?.call(decode),
-        mode: widget.scanMode,
-        engine: widget.engine,
-        validation: widget.validation,
-        preferences: widget.cameraPreferences,
-      );
+    // Called through `widget` rather than captured, because the controller
+    // outlives the build that created it: a callback taken by value here is
+    // frozen at that build and goes on reading whatever it closed over then.
+    onDetect: (result) => widget.onDetect(result),
+    onFailure: (failure) => widget.onError?.call(failure),
+    onReject: (rejection) => widget.onReject?.call(rejection),
+    onRawDecode: (decode) => widget.onRawDecode?.call(decode),
+    mode: widget.scanMode,
+    engine: widget.engine,
+    validation: widget.validation,
+    preferences: widget.cameraPreferences,
+  );
 
   @override
-  void didUpdateWidget(covariant OmniWebScanner oldWidget) {
+  void didUpdateWidget(covariant WebScanner oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.controller != null || oldWidget.controller != null) return;
 
     // These settings are baked into the session when it starts, so changing
     // one has to rebuild the controller and reopen the camera.
-    final needsRestart = widget.scanMode != oldWidget.scanMode ||
+    final needsRestart =
+        widget.scanMode != oldWidget.scanMode ||
         widget.engine != oldWidget.engine ||
         widget.cameraPreferences != oldWidget.cameraPreferences;
 

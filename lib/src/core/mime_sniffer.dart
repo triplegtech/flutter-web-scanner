@@ -22,8 +22,16 @@ abstract final class MimeSniffer {
 
   /// Returns the MIME type implied by [bytes], or `null` when unrecognised.
   static String? sniff(Uint8List bytes) {
-    if (_matches(
-        bytes, const [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])) {
+    if (_matches(bytes, const [
+      0x89,
+      0x50,
+      0x4E,
+      0x47,
+      0x0D,
+      0x0A,
+      0x1A,
+      0x0A,
+    ])) {
       return 'image/png';
     }
     if (_matches(bytes, const [0xFF, 0xD8, 0xFF])) {
@@ -62,16 +70,16 @@ abstract final class MimeSniffer {
   /// Conventional file extension for [mimeType], used when naming the
   /// synthetic `File` handed to the browser.
   static String extensionFor(String mimeType) => switch (mimeType) {
-        'image/png' => 'png',
-        'image/jpeg' => 'jpg',
-        'image/gif' => 'gif',
-        'image/bmp' => 'bmp',
-        'image/webp' => 'webp',
-        'image/tiff' => 'tiff',
-        'image/heic' => 'heic',
-        'application/pdf' => 'pdf',
-        _ => 'bin',
-      };
+    'image/png' => 'png',
+    'image/jpeg' => 'jpg',
+    'image/gif' => 'gif',
+    'image/bmp' => 'bmp',
+    'image/webp' => 'webp',
+    'image/tiff' => 'tiff',
+    'image/heic' => 'heic',
+    'application/pdf' => 'pdf',
+    _ => 'bin',
+  };
 
   static const Set<String> _heifBrands = {
     'heic',

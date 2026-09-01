@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omni_qrcode_barcode_web_reader/omni_qrcode_barcode_web_reader.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/core/detection_stabilizer.dart';
+import 'package:flutter_web_scanner/flutter_web_scanner.dart';
+import 'package:flutter_web_scanner/src/core/detection_stabilizer.dart';
 
 /// Hand-cranked clock, so confirmation windows and cooldowns are exercised
 /// without any real waiting.
@@ -85,9 +85,7 @@ void main() {
 
     test('expires a stale streak so old and new reads cannot combine', () {
       final stabilizer = build(
-        const ScanValidation(
-          confirmationWindow: Duration(milliseconds: 500),
-        ),
+        const ScanValidation(confirmationWindow: Duration(milliseconds: 500)),
       );
       stabilizer.offer(validEan, BarcodeFormat.ean13);
       clock.advance(const Duration(milliseconds: 501));
@@ -103,9 +101,7 @@ void main() {
 
     test('keeps the streak alive inside the confirmation window', () {
       final stabilizer = build(
-        const ScanValidation(
-          confirmationWindow: Duration(milliseconds: 500),
-        ),
+        const ScanValidation(confirmationWindow: Duration(milliseconds: 500)),
       );
       stabilizer.offer(validEan, BarcodeFormat.ean13);
       clock.advance(const Duration(milliseconds: 499));
@@ -142,8 +138,7 @@ void main() {
       );
     });
 
-    test(
-        'tracks cooldowns per value, so two codes in frame do not clear each '
+    test('tracks cooldowns per value, so two codes in frame do not clear each '
         "other's", () {
       final stabilizer = build(const ScanValidation(confirmations: 1));
       stabilizer.offer(validEan, BarcodeFormat.ean13);

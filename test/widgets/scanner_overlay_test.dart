@@ -3,8 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omni_qrcode_barcode_web_reader/omni_qrcode_barcode_web_reader.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/widgets/scanner_overlay_shape.dart';
+import 'package:flutter_web_scanner/flutter_web_scanner.dart';
+import 'package:flutter_web_scanner/src/widgets/scanner_overlay_shape.dart';
 
 void main() {
   // Fixed so the window the overlay carves out can be named in coordinates.
@@ -15,18 +15,17 @@ void main() {
     ScannerOverlayStyle style, {
     double width = hostWidth,
     double height = hostHeight,
-  }) =>
-      MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: SizedBox(
-              width: width,
-              height: height,
-              child: ScannerOverlay(style: style),
-            ),
-          ),
+  }) => MaterialApp(
+    home: Scaffold(
+      body: Center(
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: ScannerOverlay(style: style),
         ),
-      );
+      ),
+    ),
+  );
 
   group('dimming', () {
     testWidgets('paints without an offscreen layer', (tester) async {
@@ -48,19 +47,19 @@ void main() {
 
       expect(
         find.byType(ScannerOverlay),
-        paints
-          ..path(
-            includes: const <Offset>[
-              Offset(5, 5),
-              Offset(hostWidth / 2, hostHeight - 10),
-            ],
-            excludes: const <Offset>[Offset(hostWidth / 2, 180)],
-          ),
+        paints..path(
+          includes: const <Offset>[
+            Offset(5, 5),
+            Offset(hostWidth / 2, hostHeight - 10),
+          ],
+          excludes: const <Offset>[Offset(hostWidth / 2, 180)],
+        ),
       );
     });
 
-    testWidgets('keeps the window inside a preview shorter than the cut-out',
-        (tester) async {
+    testWidgets('keeps the window inside a preview shorter than the cut-out', (
+      tester,
+    ) async {
       // cutOutBottomOffset lifts the window to leave room for instructions
       // below it. With a cut-out taller than the preview that lift used to
       // carry the window off the top edge, clipping the upper brackets away.
@@ -73,14 +72,13 @@ void main() {
 
       expect(
         find.byType(ScannerOverlay),
-        paints
-          ..path(
-            includes: const <Offset>[
-              Offset(hostWidth / 2, 1),
-              Offset(hostWidth / 2, 249),
-            ],
-            excludes: const <Offset>[Offset(hostWidth / 2, 120)],
-          ),
+        paints..path(
+          includes: const <Offset>[
+            Offset(hostWidth / 2, 1),
+            Offset(hostWidth / 2, 249),
+          ],
+          excludes: const <Offset>[Offset(hostWidth / 2, 120)],
+        ),
       );
     });
   });
@@ -109,8 +107,9 @@ void main() {
       expect(window.width, closeTo(window.height, 0.01));
     });
 
-    testWidgets('stays square on a preview wider than it is tall',
-        (tester) async {
+    testWidgets('stays square on a preview wider than it is tall', (
+      tester,
+    ) async {
       // A square measured from the width alone would not fit, and the shape
       // answers a window taller than the preview by clamping the height on its
       // own — handing back the rectangle the square mode exists to avoid.
@@ -125,10 +124,8 @@ void main() {
   });
 
   group('sweep line', () {
-    Finder lineIn(Finder overlay) => find.descendant(
-          of: overlay,
-          matching: find.byType(RepaintBoundary),
-        );
+    Finder lineIn(Finder overlay) =>
+        find.descendant(of: overlay, matching: find.byType(RepaintBoundary));
 
     testWidgets('travels down the framing window', (tester) async {
       await tester.pumpWidget(host(const ScannerOverlayStyle()));
@@ -140,8 +137,9 @@ void main() {
       expect(tester.getTopLeft(line).dy, greaterThan(start));
     });
 
-    testWidgets('reaches both edges of the window and neither passes them',
-        (tester) async {
+    testWidgets('reaches both edges of the window and neither passes them', (
+      tester,
+    ) async {
       // 1.x swept -0.075 → 0.80 of the cut-out's height, so the line began
       // above the frame and stopped a fifth short of its bottom.
       const style = ScannerOverlayStyle();
@@ -198,7 +196,7 @@ void main() {
 
   group('ScannerOverlayStyle', () {
     test('dims and sweeps in the mobile app\'s colours', () {
-      // Both are read off the OMNI mobile overlay — black at 75% and Material's
+      // Both are read off that native app's overlay — black at 75% and Material's
       // Colors.red — so the app and the web reader frame a code the same way.
       // The alpha is the one that reaches the screen: the shape no longer
       // applies it a second time through a saveLayer.

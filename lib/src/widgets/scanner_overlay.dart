@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_overlay_style.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/widgets/scanner_overlay_shape.dart';
+import 'package:flutter_web_scanner/src/models/scanner_overlay_style.dart';
+import 'package:flutter_web_scanner/src/widgets/scanner_overlay_shape.dart';
 
 /// Inset of the sweep line from each side of the window, so it reads as inside
 /// the frame rather than running into the corner brackets.

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:omni_qrcode_barcode_web_reader_example/scanner_overlay_shape.dart';
+import 'package:flutter_web_scanner_example/scanner_overlay_shape.dart';
 
 class BarcodeOverlayWidget extends StatefulWidget {
   const BarcodeOverlayWidget({super.key});
@@ -24,9 +24,10 @@ class _BarcodeOverlayWidgetState extends State<BarcodeOverlayWidget>
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
 
-    _animation = Tween<double>(begin: -0.075, end: 0.80).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _animation = Tween<double>(
+      begin: -0.075,
+      end: 0.80,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -66,9 +67,7 @@ class _BarcodeOverlayWidgetState extends State<BarcodeOverlayWidget>
                 animation: _animation,
                 builder: (context, child) {
                   final y = _animation.value * cutOutHeight;
-                  return CustomPaint(
-                    painter: _ScannerLinePainter(position: y),
-                  );
+                  return CustomPaint(painter: _ScannerLinePainter(position: y));
                 },
               ),
             ),

@@ -62,7 +62,7 @@ if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
   die "Porta $PORT já está em uso. Use --port <outra>."
 fi
 
-TUNNEL_LOG="$(mktemp -t omni-cloudflared)"
+TUNNEL_LOG="$(mktemp -t flutter-web-scanner-cloudflared)"
 TUNNEL_PID=""
 
 cleanup() {

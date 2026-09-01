@@ -1,5 +1,5 @@
-import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_failure.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/platform/scanner_platform.dart';
+import 'package:flutter_web_scanner/src/models/scanner_failure.dart';
+import 'package:flutter_web_scanner/src/platform/scanner_platform.dart';
 
 /// Lifecycle of a scanner instance.
 ///

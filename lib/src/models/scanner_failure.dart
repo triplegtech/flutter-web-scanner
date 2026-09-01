@@ -41,18 +41,16 @@ enum ScannerFailureKind {
   /// A denied permission or a missing engine will fail identically on retry, so
   /// offering a retry button for those is a dead end.
   bool get isRetryable => switch (this) {
-        ScannerFailureKind.cameraInUse ||
-        ScannerFailureKind.overconstrained ||
-        ScannerFailureKind.startFailed ||
-        ScannerFailureKind.unknown =>
-          true,
-        ScannerFailureKind.permissionDenied ||
-        ScannerFailureKind.noCameraFound ||
-        ScannerFailureKind.engineUnavailable ||
-        ScannerFailureKind.insecureContext ||
-        ScannerFailureKind.unsupportedPlatform =>
-          false,
-      };
+    ScannerFailureKind.cameraInUse ||
+    ScannerFailureKind.overconstrained ||
+    ScannerFailureKind.startFailed ||
+    ScannerFailureKind.unknown => true,
+    ScannerFailureKind.permissionDenied ||
+    ScannerFailureKind.noCameraFound ||
+    ScannerFailureKind.engineUnavailable ||
+    ScannerFailureKind.insecureContext ||
+    ScannerFailureKind.unsupportedPlatform => false,
+  };
 }
 
 /// A classified scanner error with technical detail preserved.
@@ -79,18 +77,14 @@ class ScannerFailure implements Exception {
       switch (name?.trim()) {
         'NotAllowedError' ||
         'PermissionDeniedError' ||
-        'SecurityError' =>
-          ScannerFailureKind.permissionDenied,
+        'SecurityError' => ScannerFailureKind.permissionDenied,
         'NotFoundError' ||
-        'DevicesNotFoundError' =>
-          ScannerFailureKind.noCameraFound,
+        'DevicesNotFoundError' => ScannerFailureKind.noCameraFound,
         'NotReadableError' ||
         'TrackStartError' ||
-        'AbortError' =>
-          ScannerFailureKind.cameraInUse,
+        'AbortError' => ScannerFailureKind.cameraInUse,
         'OverconstrainedError' ||
-        'ConstraintNotSatisfiedError' =>
-          ScannerFailureKind.overconstrained,
+        'ConstraintNotSatisfiedError' => ScannerFailureKind.overconstrained,
         _ => ScannerFailureKind.unknown,
       };
 

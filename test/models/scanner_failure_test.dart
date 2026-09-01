@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omni_qrcode_barcode_web_reader/omni_qrcode_barcode_web_reader.dart';
+import 'package:flutter_web_scanner/flutter_web_scanner.dart';
 
 void main() {
   group('kindFromDomError', () {
@@ -33,7 +33,7 @@ void main() {
       for (final name in [
         'NotReadableError',
         'TrackStartError',
-        'AbortError'
+        'AbortError',
       ]) {
         expect(
           ScannerFailure.kindFromDomError(name),
@@ -62,10 +62,7 @@ void main() {
     });
 
     test('falls back to unknown rather than guessing', () {
-      expect(
-        ScannerFailure.kindFromDomError(null),
-        ScannerFailureKind.unknown,
-      );
+      expect(ScannerFailure.kindFromDomError(null), ScannerFailureKind.unknown);
       expect(
         ScannerFailure.kindFromDomError('SomethingNewError'),
         ScannerFailureKind.unknown,

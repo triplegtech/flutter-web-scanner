@@ -1,7 +1,7 @@
 import 'dart:ui' show Size;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omni_qrcode_barcode_web_reader/omni_qrcode_barcode_web_reader.dart';
+import 'package:flutter_web_scanner/flutter_web_scanner.dart';
 
 void main() {
   group('CameraPreferences', () {
@@ -109,14 +109,16 @@ void main() {
     test('rejects settings that cannot describe a camera', () {
       expect(() => CameraPreferences(idealWidth: 0), throwsAssertionError);
       expect(
-          () => CameraPreferences(maxProbedCameras: -1), throwsAssertionError);
+        () => CameraPreferences(maxProbedCameras: -1),
+        throwsAssertionError,
+      );
       // Below 1.0 is not zoom, it is a wider field of view, which no browser
       // exposes this way.
       expect(() => CameraPreferences(zoom: 0.5), throwsAssertionError);
     });
 
     test('two instances describing the same camera are equal', () {
-      // OmniWebScanner reopens the camera when these compare unequal, so an
+      // WebScanner reopens the camera when these compare unequal, so an
       // instance rebuilt from the same arguments has to compare equal or the
       // session is torn down and restarted on every rebuild.
       expect(CameraPreferences(), CameraPreferences());
@@ -128,10 +130,7 @@ void main() {
     });
 
     test('a differently tuned camera is not equal', () {
-      expect(
-        CameraPreferences(),
-        isNot(CameraPreferences(tryHarder: false)),
-      );
+      expect(CameraPreferences(), isNot(CameraPreferences(tryHarder: false)));
       expect(
         CameraPreferences(),
         isNot(CameraPreferences.forMode(ScanMode.barcode)),
@@ -141,7 +140,9 @@ void main() {
     test('rejects a decode region that is not a fraction of the frame', () {
       expect(() => CameraPreferences(roiWidthFactor: 0), throwsAssertionError);
       expect(
-          () => CameraPreferences(roiHeightFactor: 1.5), throwsAssertionError);
+        () => CameraPreferences(roiHeightFactor: 1.5),
+        throwsAssertionError,
+      );
     });
   });
 

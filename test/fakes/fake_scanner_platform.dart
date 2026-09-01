@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
-import 'package:omni_qrcode_barcode_web_reader/omni_qrcode_barcode_web_reader.dart';
+import 'package:flutter_web_scanner/flutter_web_scanner.dart';
 
 /// In-memory [ScannerPlatform] used across the test suite.
 ///
@@ -58,8 +58,7 @@ class FakeScannerPlatform implements ScannerPlatform {
 
   /// MIME type, mode and engine of every [decodeImage] call.
   final List<({String mimeType, ScanMode mode, ScanEngine engine})>
-      decodeRequests =
-      <({String mimeType, ScanMode mode, ScanEngine engine})>[];
+  decodeRequests = <({String mimeType, ScanMode mode, ScanEngine engine})>[];
 
   final List<String> stoppedSessions = <String>[];
   final List<String> probedDeviceIds = <String>[];

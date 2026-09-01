@@ -1,6 +1,6 @@
 /// Camera-based QR code and barcode scanning for Flutter Web.
 ///
-/// The entry points are [OmniWebScanner] for live scanning and
+/// The entry points are [WebScanner] for live scanning and
 /// [decodeBarcodeFromBytes] for still images.
 ///
 /// The browser interop script is injected lazily on first use, so unlike 1.x
@@ -51,6 +51,5 @@ export 'src/platform/scanner_platform.dart'
         ScannerPlatformResolver,
         StartSessionRequest;
 export 'src/services/scan_service.dart' show decodeBarcodeFromBytes;
-export 'src/widgets/omni_web_scanner.dart'
-    show OmniWebScanner, ScannerErrorBuilder;
+export 'src/widgets/web_scanner.dart' show WebScanner, ScannerErrorBuilder;
 export 'src/widgets/scanner_overlay.dart' show ScannerOverlay;

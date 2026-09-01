@@ -18,9 +18,9 @@ enum CameraFacing {
   unknown;
 
   static CameraFacing fromConstraint(String? raw) => switch (raw?.trim()) {
-        'user' => CameraFacing.front,
-        'environment' => CameraFacing.back,
-        'left' || 'right' => CameraFacing.external,
-        _ => CameraFacing.unknown,
-      };
+    'user' => CameraFacing.front,
+    'environment' => CameraFacing.back,
+    'left' || 'right' => CameraFacing.external,
+    _ => CameraFacing.unknown,
+  };
 }

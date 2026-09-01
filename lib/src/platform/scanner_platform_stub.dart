@@ -1,12 +1,12 @@
 import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_engine.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_mode.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/camera_capabilities.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/camera_model.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_failure.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/platform/scanner_platform.dart';
+import 'package:flutter_web_scanner/src/enums/scan_engine.dart';
+import 'package:flutter_web_scanner/src/enums/scan_mode.dart';
+import 'package:flutter_web_scanner/src/models/camera_capabilities.dart';
+import 'package:flutter_web_scanner/src/models/camera_model.dart';
+import 'package:flutter_web_scanner/src/models/scanner_failure.dart';
+import 'package:flutter_web_scanner/src/platform/scanner_platform.dart';
 
 /// Selected on every non-web target through the conditional import in
 /// `scanner_platform.dart`.
@@ -22,7 +22,7 @@ class UnsupportedScannerPlatform implements ScannerPlatform {
 
   static const ScannerFailure _failure = ScannerFailure(
     ScannerFailureKind.unsupportedPlatform,
-    'omni_qrcode_barcode_web_reader only supports Flutter Web',
+    'flutter_web_scanner only supports Flutter Web',
   );
 
   @override
@@ -47,8 +47,7 @@ class UnsupportedScannerPlatform implements ScannerPlatform {
     required String mimeType,
     required ScanMode mode,
     required ScanEngine engine,
-  }) async =>
-      throw _failure;
+  }) async => throw _failure;
 
   @override
   void registerView({required String viewId, required String containerId}) {}

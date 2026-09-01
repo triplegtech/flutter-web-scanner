@@ -1,7 +1,7 @@
-import 'package:omni_qrcode_barcode_web_reader/src/core/barcode_validator.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/barcode_format.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/barcode_result.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/scan_validation.dart';
+import 'package:flutter_web_scanner/src/core/barcode_validator.dart';
+import 'package:flutter_web_scanner/src/enums/barcode_format.dart';
+import 'package:flutter_web_scanner/src/models/barcode_result.dart';
+import 'package:flutter_web_scanner/src/models/scan_validation.dart';
 
 /// What the stabiliser decided about a raw decode.
 sealed class StabilizerDecision {
@@ -58,10 +58,8 @@ final class StabilizerRejected extends StabilizerDecision {
 /// emitting. It owns no timers and reads time only through an injectable
 /// [clock], so its behaviour is fully testable without waiting.
 class DetectionStabilizer {
-  DetectionStabilizer({
-    required this.validation,
-    DateTime Function()? clock,
-  }) : _clock = clock ?? DateTime.now;
+  DetectionStabilizer({required this.validation, DateTime Function()? clock})
+    : _clock = clock ?? DateTime.now;
 
   /// Rules every offered decode is measured against.
   ///
@@ -124,7 +122,9 @@ class DetectionStabilizer {
         value: value,
         format: format,
         confirmations: confirmations,
-        checksumVerified: outcome is ValidationAccepted //
+        checksumVerified:
+            outcome
+                is ValidationAccepted //
             ? outcome.checksumVerified
             : false,
       ),
@@ -143,7 +143,8 @@ class DetectionStabilizer {
   void _advanceStreak(String value, DateTime now) {
     final lastHit = _streakLastHit;
     final isSameValue = _streakValue == value;
-    final isStale = lastHit == null ||
+    final isStale =
+        lastHit == null ||
         now.difference(lastHit) > validation.confirmationWindow;
 
     if (isSameValue && !isStale) {

@@ -1,4 +1,4 @@
-import 'package:omni_qrcode_barcode_web_reader/src/enums/barcode_format.dart';
+import 'package:flutter_web_scanner/src/enums/barcode_format.dart';
 
 /// A successfully decoded and validated code.
 class BarcodeResult {
@@ -59,6 +59,7 @@ class BarcodeResult {
   int get hashCode => Object.hash(value, format);
 
   @override
-  String toString() => 'BarcodeResult(value: $value, format: ${format.name}, '
+  String toString() =>
+      'BarcodeResult(value: $value, format: ${format.name}, '
       'confirmations: $confirmations, checksumVerified: $checksumVerified)';
 }

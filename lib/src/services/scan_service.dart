@@ -1,13 +1,13 @@
 import 'dart:typed_data';
 
-import 'package:omni_qrcode_barcode_web_reader/src/core/barcode_validator.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/core/mime_sniffer.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_engine.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_mode.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/barcode_result.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/scan_validation.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_failure.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/platform/scanner_platform.dart';
+import 'package:flutter_web_scanner/src/core/barcode_validator.dart';
+import 'package:flutter_web_scanner/src/core/mime_sniffer.dart';
+import 'package:flutter_web_scanner/src/enums/scan_engine.dart';
+import 'package:flutter_web_scanner/src/enums/scan_mode.dart';
+import 'package:flutter_web_scanner/src/models/barcode_result.dart';
+import 'package:flutter_web_scanner/src/models/scan_validation.dart';
+import 'package:flutter_web_scanner/src/models/scanner_failure.dart';
+import 'package:flutter_web_scanner/src/platform/scanner_platform.dart';
 
 /// Decodes a barcode or QR code from raw image bytes.
 ///
@@ -74,11 +74,11 @@ Future<BarcodeResult?> decodeBarcodeFromBytes(
 
   return switch (outcome) {
     ValidationAccepted(:final checksumVerified) => BarcodeResult(
-        value: decode.value,
-        format: decode.format,
-        rawFormat: decode.rawFormat,
-        checksumVerified: checksumVerified,
-      ),
+      value: decode.value,
+      format: decode.format,
+      rawFormat: decode.rawFormat,
+      checksumVerified: checksumVerified,
+    ),
     // A payload that fails its own check digit is a misread, not a result.
     ValidationRejected() => null,
   };

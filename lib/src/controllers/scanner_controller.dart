@@ -2,18 +2,18 @@ import 'dart:async' show unawaited;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show Widget;
-import 'package:omni_qrcode_barcode_web_reader/src/controllers/scanner_state.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/core/camera_selector.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/core/detection_stabilizer.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_engine.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_mode.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/barcode_result.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/camera_model.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/camera_preferences.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/scan_rejection.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/scan_validation.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_failure.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/platform/scanner_platform.dart';
+import 'package:flutter_web_scanner/src/controllers/scanner_state.dart';
+import 'package:flutter_web_scanner/src/core/camera_selector.dart';
+import 'package:flutter_web_scanner/src/core/detection_stabilizer.dart';
+import 'package:flutter_web_scanner/src/enums/scan_engine.dart';
+import 'package:flutter_web_scanner/src/enums/scan_mode.dart';
+import 'package:flutter_web_scanner/src/models/barcode_result.dart';
+import 'package:flutter_web_scanner/src/models/camera_model.dart';
+import 'package:flutter_web_scanner/src/models/camera_preferences.dart';
+import 'package:flutter_web_scanner/src/models/scan_rejection.dart';
+import 'package:flutter_web_scanner/src/models/scan_validation.dart';
+import 'package:flutter_web_scanner/src/models/scanner_failure.dart';
+import 'package:flutter_web_scanner/src/platform/scanner_platform.dart';
 
 /// Owns the scanner's lifecycle: camera choice, session start/stop, and the
 /// validation pipeline between a raw decode and `onDetect`.
@@ -34,9 +34,11 @@ class ScannerController extends ChangeNotifier {
     ScannerPlatform? platform,
     DateTime Function()? clock,
     String? instanceId,
-  })  : preferences = preferences ?? CameraPreferences.forMode(mode),
-        _platform = platform ?? ScannerPlatformResolver.instance,
-        id = instanceId ?? 'omni-${_instanceCounter++}' {
+  }) : preferences = preferences ?? CameraPreferences.forMode(mode),
+       _platform = platform ?? ScannerPlatformResolver.instance,
+       // Bare counter: [viewId] and [containerId] add the prefix themselves,
+       // and a prefix here too would name every element twice over.
+       id = instanceId ?? '${_instanceCounter++}' {
     _stabilizer = DetectionStabilizer(
       validation: validation ?? ScanValidation.forMode(mode),
       clock: clock,
@@ -103,8 +105,8 @@ class ScannerController extends ChangeNotifier {
   final ScannerPlatform _platform;
   late final DetectionStabilizer _stabilizer;
 
-  String get viewId => 'omni-view-$id';
-  String get containerId => 'omni-container-$id';
+  String get viewId => 'flutter-web-scanner-view-$id';
+  String get containerId => 'flutter-web-scanner-container-$id';
 
   ScannerState _state = const ScannerIdle();
   ScannerState get state => _state;
@@ -175,7 +177,7 @@ class ScannerController extends ChangeNotifier {
         FlutterErrorDetails(
           exception: error,
           stack: stackTrace,
-          library: 'omni_qrcode_barcode_web_reader',
+          library: 'flutter_web_scanner',
           context: ErrorDescription('while starting the scanner'),
         ),
       );

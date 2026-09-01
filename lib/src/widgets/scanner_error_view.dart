@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/l10n/scanner_localizations.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/scanner_failure.dart';
+import 'package:flutter_web_scanner/src/l10n/scanner_localizations.dart';
+import 'package:flutter_web_scanner/src/models/scanner_failure.dart';
 
 /// Default presentation for a [ScannerFailure].
 class ScannerErrorView extends StatelessWidget {
@@ -69,15 +69,14 @@ class ScannerErrorView extends StatelessWidget {
   }
 
   static IconData _iconFor(ScannerFailureKind kind) => switch (kind) {
-        ScannerFailureKind.permissionDenied => Icons.no_photography_outlined,
-        ScannerFailureKind.noCameraFound => Icons.videocam_off_outlined,
-        ScannerFailureKind.cameraInUse => Icons.lock_outline,
-        ScannerFailureKind.insecureContext => Icons.https_outlined,
-        ScannerFailureKind.engineUnavailable => Icons.extension_off_outlined,
-        ScannerFailureKind.unsupportedPlatform => Icons.devices_other_outlined,
-        ScannerFailureKind.overconstrained ||
-        ScannerFailureKind.startFailed ||
-        ScannerFailureKind.unknown =>
-          Icons.error_outline,
-      };
+    ScannerFailureKind.permissionDenied => Icons.no_photography_outlined,
+    ScannerFailureKind.noCameraFound => Icons.videocam_off_outlined,
+    ScannerFailureKind.cameraInUse => Icons.lock_outline,
+    ScannerFailureKind.insecureContext => Icons.https_outlined,
+    ScannerFailureKind.engineUnavailable => Icons.extension_off_outlined,
+    ScannerFailureKind.unsupportedPlatform => Icons.devices_other_outlined,
+    ScannerFailureKind.overconstrained ||
+    ScannerFailureKind.startFailed ||
+    ScannerFailureKind.unknown => Icons.error_outline,
+  };
 }

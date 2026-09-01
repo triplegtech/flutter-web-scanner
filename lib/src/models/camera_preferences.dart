@@ -1,5 +1,5 @@
-import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_distance.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_mode.dart';
+import 'package:flutter_web_scanner/src/enums/scan_distance.dart';
+import 'package:flutter_web_scanner/src/enums/scan_mode.dart';
 
 /// How the camera should be chosen and configured, and how hard the decoder
 /// should work on what it produces.
@@ -18,18 +18,17 @@ class CameraPreferences {
     this.roiWidthFactor = 1.0,
     this.roiHeightFactor = 1.0,
     this.tryHarder = true,
-  })  : assert(
-            idealWidth > 0 && idealHeight > 0, 'resolution must be positive'),
-        assert(maxProbedCameras >= 0, 'maxProbedCameras cannot be negative'),
-        assert(zoom == null || zoom >= 1.0, 'zoom below 1.0 is not meaningful'),
-        assert(
-          roiWidthFactor > 0 && roiWidthFactor <= 1,
-          'roiWidthFactor must be within (0, 1]',
-        ),
-        assert(
-          roiHeightFactor > 0 && roiHeightFactor <= 1,
-          'roiHeightFactor must be within (0, 1]',
-        );
+  }) : assert(idealWidth > 0 && idealHeight > 0, 'resolution must be positive'),
+       assert(maxProbedCameras >= 0, 'maxProbedCameras cannot be negative'),
+       assert(zoom == null || zoom >= 1.0, 'zoom below 1.0 is not meaningful'),
+       assert(
+         roiWidthFactor > 0 && roiWidthFactor <= 1,
+         'roiWidthFactor must be within (0, 1]',
+       ),
+       assert(
+         roiHeightFactor > 0 && roiHeightFactor <= 1,
+         'roiHeightFactor must be within (0, 1]',
+       );
 
   /// Expected distance between lens and code. See [ScanDistance].
   final ScanDistance distance;
@@ -200,7 +199,7 @@ class CameraPreferences {
     );
   }
 
-  // OmniWebScanner compares the preferences it was given against the previous
+  // WebScanner compares the preferences it was given against the previous
   // ones to decide whether the camera has to be reopened. Without this that
   // comparison is by identity, and `cameraPreferences: CameraPreferences()`
   // written inside a build method — a fresh instance every rebuild — tears the
@@ -225,18 +224,18 @@ class CameraPreferences {
 
   @override
   int get hashCode => Object.hash(
-        distance,
-        idealWidth,
-        idealHeight,
-        idealFrameRate,
-        probeCapabilities,
-        maxProbedCameras,
-        continuousFocus,
-        zoom,
-        torch,
-        decodeInterval,
-        roiWidthFactor,
-        roiHeightFactor,
-        tryHarder,
-      );
+    distance,
+    idealWidth,
+    idealHeight,
+    idealFrameRate,
+    probeCapabilities,
+    maxProbedCameras,
+    continuousFocus,
+    zoom,
+    torch,
+    decodeInterval,
+    roiWidthFactor,
+    roiHeightFactor,
+    tryHarder,
+  );
 }

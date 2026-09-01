@@ -1,9 +1,9 @@
-import 'package:omni_qrcode_barcode_web_reader/src/enums/camera_facing.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/lens_kind.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_distance.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/scan_mode.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/camera_model.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/models/camera_preferences.dart';
+import 'package:flutter_web_scanner/src/enums/camera_facing.dart';
+import 'package:flutter_web_scanner/src/enums/lens_kind.dart';
+import 'package:flutter_web_scanner/src/enums/scan_distance.dart';
+import 'package:flutter_web_scanner/src/enums/scan_mode.dart';
+import 'package:flutter_web_scanner/src/models/camera_model.dart';
+import 'package:flutter_web_scanner/src/models/camera_preferences.dart';
 
 /// A camera with its computed suitability score.
 class CameraCandidate {
@@ -268,30 +268,27 @@ abstract final class CameraSelector {
     return switch (distance) {
       // Reward getting closer, linearly, up to a 20 cm ceiling.
       ScanDistance.near => _add(
-          reasons,
-          'focuses as close as ${(closest * 100).toStringAsFixed(1)} cm',
-          (((0.20 - closest) / 0.20).clamp(0.0, 1.0) * 400).round(),
-        ),
+        reasons,
+        'focuses as close as ${(closest * 100).toStringAsFixed(1)} cm',
+        (((0.20 - closest) / 0.20).clamp(0.0, 1.0) * 400).round(),
+      ),
       // Mild reward, since at arm's length nearly any lens can focus.
       ScanDistance.normal => _add(
-          reasons,
-          'minimum focus ${(closest * 100).toStringAsFixed(1)} cm',
-          (((0.30 - closest) / 0.30).clamp(0.0, 1.0) * 80).round(),
-        ),
+        reasons,
+        'minimum focus ${(closest * 100).toStringAsFixed(1)} cm',
+        (((0.30 - closest) / 0.30).clamp(0.0, 1.0) * 80).round(),
+      ),
       // Penalise only lenses that genuinely cannot focus up close. This is the
       // rule that lets a measured macro lens overtake the main lens.
-      ScanDistance.auto => closest > _closeFocusCeiling
-          ? _add(
-              reasons,
-              'cannot focus closer than '
-              '${(closest * 100).toStringAsFixed(1)} cm',
-              -200,
-            )
-          : _add(
-              reasons,
-              'focuses close enough for short range',
-              150,
-            ),
+      ScanDistance.auto =>
+        closest > _closeFocusCeiling
+            ? _add(
+                reasons,
+                'cannot focus closer than '
+                '${(closest * 100).toStringAsFixed(1)} cm',
+                -200,
+              )
+            : _add(reasons, 'focuses close enough for short range', 150),
     };
   }
 

@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/core/mime_sniffer.dart';
+import 'package:flutter_web_scanner/src/core/mime_sniffer.dart';
 
 Uint8List bytes(List<int> values) => Uint8List.fromList(values);
 
@@ -57,14 +57,8 @@ void main() {
     });
 
     test('detects TIFF in both byte orders', () {
-      expect(
-        MimeSniffer.sniff(bytes([0x49, 0x49, 0x2A, 0x00])),
-        'image/tiff',
-      );
-      expect(
-        MimeSniffer.sniff(bytes([0x4D, 0x4D, 0x00, 0x2A])),
-        'image/tiff',
-      );
+      expect(MimeSniffer.sniff(bytes([0x49, 0x49, 0x2A, 0x00])), 'image/tiff');
+      expect(MimeSniffer.sniff(bytes([0x4D, 0x4D, 0x00, 0x2A])), 'image/tiff');
     });
 
     test('detects HEIC by its ISO-BMFF brand', () {

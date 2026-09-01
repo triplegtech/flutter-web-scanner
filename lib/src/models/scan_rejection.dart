@@ -1,5 +1,5 @@
-import 'package:omni_qrcode_barcode_web_reader/src/core/barcode_validator.dart';
-import 'package:omni_qrcode_barcode_web_reader/src/enums/barcode_format.dart';
+import 'package:flutter_web_scanner/src/core/barcode_validator.dart';
+import 'package:flutter_web_scanner/src/enums/barcode_format.dart';
 
 /// A decode the validation pipeline threw away before `onDetect`.
 ///
@@ -38,6 +38,7 @@ class ScanRejection {
   final String message;
 
   @override
-  String toString() => 'ScanRejection(${reason.name}: $message, '
+  String toString() =>
+      'ScanRejection(${reason.name}: $message, '
       'value: $value, format: ${format.name}, rawFormat: $rawFormat)';
 }
