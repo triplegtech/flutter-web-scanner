@@ -1,51 +1,71 @@
-## 3.0.0
+## 1.0.0
 
-The package is now open source under the MIT licence, and the rename that came
-with it is the only breaking change: no behaviour, no default and no other
-signature moved. Upgrading is a find-and-replace.
+First public release, under the MIT licence. The scanner itself is not new — it
+ran in production as a closed-source package for two years, and this is that
+package renamed, relicensed and opened up. The version number restarts because
+the repository does; the code carries every fix listed under *Earlier
+releases* below.
 
-### Breaking
+### Added
 
-* **Renamed to `flutter_web_scanner`.** The package, the import and the
-  repository all drop the vendor prefix they carried while this was an internal
-  package. Update the dependency and the import:
-
-  ```yaml
-  dependencies:
-    flutter_web_scanner: ^3.0.0
-  ```
-
-  ```dart
-  import 'package:flutter_web_scanner/flutter_web_scanner.dart';
-  ```
-
-* **`OmniWebScanner` is now `WebScanner`.** Same constructor, same parameters,
-  same callbacks — the name is all that changed. Every other exported type
-  (`ScannerController`, `ScanValidation`, `CameraPreferences`, `BarcodeResult`,
-  `ScannerFailure`, …) keeps its name.
-
-* **The browser namespace is now `window.flutterWebScanner`**, and the DOM ids
-  the interop layer creates are prefixed `flutter-web-scanner-` instead of
-  `omni-`. This is internal, and only matters to code that reached into the
-  injected script directly — `window.flutterWebScanner.debug = true` is still
-  how verbose logging is switched on.
+* **Camera selection that measures instead of guessing.** Browsers expose each
+  lens of a multi-camera phone as a separate `videoinput` device, so
+  `CameraSelector` scores candidates on real `MediaStreamTrack` capabilities
+  where the browser reports them, on the reported facing mode where it does
+  not, and on label keywords in seven languages as a last resort.
+* **Detections confirmed across frames.** `DetectionStabilizer` validates every
+  decode — check digit, length, format, your own guard — and requires a
+  confirmation streak before `onDetect` fires, so a half-covered 1D symbol
+  cannot report a structurally valid but wrong payload.
+* **Two engines.** The browser's native `BarcodeDetector`, ZXing-JS, or
+  `ScanEngine.auto` to pick per browser.
+* **Typed failures.** `ScannerFailure` carries a `ScannerFailureKind`, and
+  `isRetryable` decides whether a retry is worth offering.
+* **Copy in English, Portuguese and Spanish**, resolved from the app `Locale`
+  or replaced wholesale.
+* **Still-image decoding** from `Uint8List` via `decodeBarcodeFromBytes`.
 
 ### Changed
 
+Anyone moving over from the private `omni_qrcode_barcode_web_reader` package
+needs two find-and-replaces; nothing else changed.
+
+* **The package is `flutter_web_scanner`.** It is not on pub.dev yet, so depend
+  on the repository and pin the tag:
+
+  ```yaml
+  dependencies:
+    flutter_web_scanner:
+      git:
+        url: https://github.com/triplegtech/flutter_web_scanner.git
+        ref: v1.0.0
+  ```
+
+* **`OmniWebScanner` is now `WebScanner`.** Same constructor, same parameters,
+  same callbacks. Every other exported type keeps its name, and no default,
+  callback or behaviour moved.
+* **The browser namespace is `window.flutterWebScanner`**, and the DOM ids the
+  interop layer creates are prefixed `flutter-web-scanner-`. Internal, and only
+  visible to code that reached into the injected script directly —
+  `window.flutterWebScanner.debug = true` is still how verbose logging is
+  switched on.
 * **Licensed under MIT.** The previous licence reserved all rights, which made
   the package unusable outside the organisation that wrote it.
-* **Releases are cut from the repository, not from pub.dev.** Merging a version
-  bump into `main` now tags the commit and publishes a GitHub release whose
-  body is that version's CHANGELOG section. Publishing to pub.dev is not wired
-  up yet.
 
-## 2.2.0
+## Earlier releases
+
+Everything below documents `omni_qrcode_barcode_web_reader`, the closed-source
+package this one was extracted from. Its version numbers are unrelated to the
+numbering above; it is kept because it is where the reasoning behind the
+camera-selection and validation behaviour was written down.
+
+### 2.2.0
 
 Fixes a bug that made every symbology unnameable on browsers without
 `BarcodeDetector`, and adds the two callbacks that would have made it visible
 in minutes rather than a debugging session. No breaking changes.
 
-### Fixed
+#### Fixed
 
 * **The ZXing engine reported a number instead of a format name.**
   `result.getBarcodeFormat()` returns the *ordinal* of ZXing's enum, so the
@@ -57,7 +77,7 @@ in minutes rather than a debugging session. No breaking changes.
   `ScanEngine.native` was never affected. Both the live stream and
   `decodeBarcodeFromBytes` were reporting ordinals, and both are fixed.
 
-### Added
+#### Added
 
 * `OmniWebScanner.onRawDecode` and `ScannerController.onRawDecode` hand over
   every decode the engine produced with nothing applied to it — no checksum
@@ -74,7 +94,7 @@ in minutes rather than a debugging session. No breaking changes.
   from the preview's shorter axis, rather than a band of fixed height.
   `ScannerOverlayStyle.cutOutSizeFor` exposes the resulting size.
 
-### Changed
+#### Changed
 
 * **`validation` can be replaced on a live scanner.** It is applied downstream
   of the decoder, so new rules are handed to the running session instead of
@@ -99,13 +119,13 @@ in minutes rather than a debugging session. No breaking changes.
   measurements. The measurements match the OMNI mobile app, so the two framings
   agree. Callers who passed their own values are unaffected.
 
-## 2.1.0
+### 2.1.0
 
 Performance work on the live preview, plus the knobs to tune it. No breaking
 changes: everything below is additive or fixes behaviour that was already
 wrong.
 
-### Decoding
+#### Decoding
 
 * `CameraPreferences.decodeInterval` sets the idle gap left between decode
   attempts, 100 ms by default. It is a gap and not a period, so it bounds how
@@ -126,7 +146,7 @@ wrong.
   mode stall the page. The band that is still read is the one the mode's own
   overlay tells the user to aim at, at the full width a long code needs.
 
-### Overlay
+#### Overlay
 
 * The dimming is drawn as a single subtracted path instead of a `saveLayer`
   with a `dstOut` erase. CanvasKit answers a `saveLayer` by allocating a
@@ -147,7 +167,7 @@ wrong.
   what 2.0.0 actually put on screen: the default changed, the appearance did
   not. A custom `overlayColor` is now rendered at exactly the alpha given.
 
-### Camera selection
+#### Camera selection
 
 * `ScanDistance.near` no longer promotes an ultra-wide lens on its label alone.
   iOS switches to that lens for macro inside its camera app and never through
@@ -157,11 +177,11 @@ wrong.
   code did. A `macro` label still ranks first, by a margin small enough for a
   measured focus distance to overturn it.
 
-## 2.0.0
+### 2.0.0
 
 A rewrite of the scanning pipeline. See the migration table in the README.
 
-### Breaking
+#### Breaking
 
 * The minimum supported SDK is now Flutter 3.41.4 / Dart 3.11, up from
   Flutter 3.27 / Dart 3.6.
@@ -178,7 +198,7 @@ A rewrite of the scanning pipeline. See the migration table in the README.
 * The `fit` parameter was removed; size the scanner with `width` / `height`.
 * The `js` and `get` dependencies were dropped.
 
-### Camera selection
+#### Camera selection
 
 * Devices are now scored on measured capabilities — minimum focus distance,
   sensor size, focus modes — read from a live track, with label keywords used
@@ -195,7 +215,7 @@ A rewrite of the scanning pipeline. See the migration table in the README.
   requested explicitly; browsers otherwise default to 640x480, at which a 1D
   barcode at arm's length cannot be decoded.
 
-### Reading and validation
+#### Reading and validation
 
 * Check digits are verified for EAN-8/13, UPC-A/E and ITF-14; a payload that fails
   its own checksum is treated as a misread and never surfaced.
@@ -209,7 +229,7 @@ A rewrite of the scanning pipeline. See the migration table in the README.
   instead of a hardcoded `EAN-13`, and applies the same validation as the live
   scanner.
 
-### Lifecycle and API
+#### Lifecycle and API
 
 * Added `ScannerController` for callers that need to drive start/stop or
   inspect the ranked camera list, and `ScannerState` as a sealed hierarchy.
@@ -220,7 +240,7 @@ A rewrite of the scanning pipeline. See the migration table in the README.
 * User-facing copy is resolved from the app's `Locale` (English, Portuguese,
   Spanish) and can be replaced with `ScannerLocalizations`.
 
-### Tooling
+#### Tooling
 
 * 225 unit and widget tests, at 89% line coverage.
 * CI runs formatting, analysis, the test suite with an 80% coverage floor, the
@@ -230,93 +250,93 @@ A rewrite of the scanning pipeline. See the migration table in the README.
   afterwards as a record.
 * `example/` is now a runnable Flutter Web app.
 
-## 1.1.4
+### 1.1.4
 * Fix update js util package and related code
 
-## 1.1.3
+### 1.1.3
 * Feat add new qr code and barcode overlay widgets
 
-## 1.1.2
+### 1.1.2
 * Fix camera filtering for phones without angular cameras
 
-## 1.1.1
+### 1.1.1
 * Fix scanner erro screen
 * Retry button option for loading the scanner
 
-## 1.1.0
+### 1.1.0
 
 * Fix camera selection for iOS devices for close range scan
 * Adds support to file scan
 
-## 1.0.9
+### 1.0.9
 
 * Fix camera selection for iOS devices for close range scan
 
-## 1.0.8
+### 1.0.8
 
 * Improves camera selection for iOS devices for close range scan
 
-## 1.0.7
+### 1.0.7
 
 * Improves camera selection for mobile devices
 
-## 1.0.6
+### 1.0.6
 
 * Improves camera selection for mobile devices
 
-## 1.0.5
+### 1.0.5
 
 * Removing js script changes
 
-## 1.0.4
+### 1.0.4
 
 * Improve scanner widget if clauses
 
-## 1.0.3
+### 1.0.3
 
 * Improve barcode script for iOS devices
 
-## 1.0.2
+### 1.0.2
 
 * Improve permission handling
 * Fix changelog version history order
 
-## 1.0.1
+### 1.0.1
 
 *  Fix minimum version
 
-## 1.0.0
+### 1.0.0
 
 *  Fix documentation
 *  Fix placeholder alignment
 
-## 0.0.7-beta
+### 0.0.7-beta
 
 *  Improving camera selection for android devices
 
-## 0.0.6-beta
+### 0.0.6-beta
 
 *  Improving camera selection
 
-## 0.0.5-beta
+### 0.0.5-beta
 
 *  Testing camera selection
 
-## 0.0.4-beta
+### 0.0.4-beta
 
 *   Add the scanner.js
 *   Fix rendering problems
 
-## 0.0.3-beta
+### 0.0.3-beta
 
 *   Fix initialize error
 *   Improve documentation
 
-## 0.0.2-beta
+### 0.0.2-beta
 
 *   Introduced a usage example
 
-## 0.0.1-beta
+### 0.0.1-beta
 
 *   **Initial Public Release**
 *   Introduced the `omni_qrcode_barcode_web_reader` package, providing a solution for integrating camera-based barcode and QR code scanning directly within Flutter Web applications.

@@ -47,7 +47,7 @@ dependencies:
   flutter_web_scanner:
     git:
       url: https://github.com/triplegtech/flutter_web_scanner.git
-      ref: v3.0.0
+      ref: v1.0.0
 ```
 
 ### 2. Load a decoding engine
@@ -190,12 +190,15 @@ validation, and throws `ScannerFailure` when the bytes themselves cannot be
 processed. The MIME type is sniffed from the bytes, and the symbology reported
 is the one the engine actually found.
 
-## Migrating from 2.x
+## Coming from `omni_qrcode_barcode_web_reader`
 
-3.0.0 renamed the package when it was opened up; nothing else changed. Two
-find-and-replaces cover it:
+1.0.0 is the closed-source package this one grew out of, renamed and opened up.
+Its numbering is unrelated to this one's, and the tables below are for anyone
+migrating off it — a new project can skip this section.
 
-| 2.x | 3.x |
+From its **2.x**, two find-and-replaces cover the whole move:
+
+| omni 2.x | flutter_web_scanner |
 |---|---|
 | `omni_qrcode_barcode_web_reader` | `flutter_web_scanner` — the package, the import and the repository. |
 | `OmniWebScanner(...)` | `WebScanner(...)` — same constructor, same parameters. |
@@ -203,9 +206,10 @@ find-and-replaces cover it:
 Every other exported type keeps its name, and no default, callback or
 behaviour moved.
 
-## Migrating from 1.x
+From its **1.x**, the API changed shape first — that work landed in its 2.0.0
+and is inherited here:
 
-| 1.x | 2.x |
+| omni 1.x | flutter_web_scanner |
 |---|---|
 | The pre-`runApp` dependency-injection call | Removed; injection is lazy. |
 | `onError: (String? message)` | `onError: (ScannerFailure failure)` — branch on `failure.kind`. |
@@ -243,13 +247,13 @@ output differs between Dart releases.
 
 One branch per version, and the release comes out of the merge:
 
-1. Branch off `main` — `release/3.1.0` reads best, but the name is not enforced.
-2. Bump `version:` in `pubspec.yaml` and add the matching `## 3.1.0` section at
+1. Branch off `main` — `release/1.1.0` reads best, but the name is not enforced.
+2. Bump `version:` in `pubspec.yaml` and add the matching `## 1.1.0` section at
    the **top** of `CHANGELOG.md`. That section becomes the release body, so
    write it for whoever will read the release page.
 3. Open a PR and let the gates run.
 4. Merge. CI re-runs analyze and the tests at the merge commit, tags it
-   `v3.1.0`, and creates the GitHub release from the CHANGELOG section.
+   `v1.1.0`, and creates the GitHub release from the CHANGELOG section.
 
 Merges that do not change the version release nothing — the job checks whether
 `v<version>` is already tagged and stops there — so an unrelated PR costs one
