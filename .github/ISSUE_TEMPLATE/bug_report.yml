@@ -1,0 +1,124 @@
+name: Bug report
+description: Something does not work — a code that will not scan, a wrong read, a crash
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Almost everything in this package is browser- and device-dependent, so
+        a report without the browser and the device is usually impossible to
+        reproduce. The fields below are the ones that actually decide whether a
+        bug can be fixed.
+
+        **Security problems do not belong here** — see
+        [SECURITY.md](https://github.com/triplegtech/flutter-web-scanner/blob/main/SECURITY.md).
+
+  - type: textarea
+    id: what-happens
+    attributes:
+      label: What happens
+      description: And what you expected instead.
+      placeholder: |
+        The preview starts and stays live, but onDetect never fires for an
+        EAN-13 printed on a box. I expected a detection within a second or two.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How to reproduce
+      description: >
+        The `WebScanner` configuration you used, ideally as code. Include
+        `scanMode`, `engine`, and any `validation` or `cameraPreferences` you
+        set — a rejected read and a missing read look identical from the
+        outside, and the validation rules are what tell them apart.
+      render: dart
+      placeholder: |
+        WebScanner(
+          scanMode: ScanMode.barcode,
+          engine: ScanEngine.auto,
+          onDetect: handleResult,
+        )
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: Safari 18.2 / Chrome 131 / Samsung Internet 27
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device and OS
+      description: >
+        The model matters — camera selection depends on which lenses the device
+        exposes, and "an Android phone" covers hardware that behaves nothing
+        alike.
+      placeholder: iPhone 13 (iOS 18.2) / Galaxy S23 (Android 14) / MacBook Pro M1
+    validations:
+      required: true
+
+  - type: input
+    id: versions
+    attributes:
+      label: Package and Flutter versions
+      placeholder: flutter_web_scanner 1.0.0, Flutter 3.41.4
+    validations:
+      required: true
+
+  - type: dropdown
+    id: engine
+    attributes:
+      label: Which engine
+      description: >
+        `auto` resolves to the browser's native `BarcodeDetector` where it
+        exists and ZXing where it does not — knowing which one actually ran
+        halves the search space. Safari has no `BarcodeDetector`.
+      options:
+        - zxing (the default)
+        - native
+        - auto
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: raw-decodes
+    attributes:
+      label: What the engine actually returned
+      description: >
+        For a code that will not scan, this is the single most useful field.
+        Attach `onRawDecode` — every decode with no validation applied — and
+        `onReject`, which names the rule that discarded one. A scanner that
+        rejects every frame raises no error and looks exactly like one that is
+        not decoding at all; these two callbacks are what separate them.
+      render: text
+      placeholder: |
+        onRawDecode: 7891234567895 — engine said "EAN_13"
+        onReject: checksum — check digit does not match
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Browser console output
+      description: >
+        Run `window.flutterWebScanner.debug = true` in the console and reload.
+        The interop script then logs every camera it found, what it measured
+        and which one it opened — paste the `[flutterWebScanner]` lines. On a
+        phone, Safari and Chrome can both be inspected from a desktop over USB.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: The page is served over HTTPS or from `localhost` (a LAN IP is rejected by the browser as an insecure context, and that is not a bug in this package)
+          required: true
+        - label: I searched the existing issues
+          required: true

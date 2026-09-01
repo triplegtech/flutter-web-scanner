@@ -1,9 +1,9 @@
 name: flutter_web_scanner
 description: "Camera-based QR code and barcode scanning for Flutter Web, with capability-driven camera selection and check-digit validation."
 version: 1.0.0
-homepage: https://github.com/triplegtech/flutter_web_scanner
-repository: https://github.com/triplegtech/flutter_web_scanner
-issue_tracker: https://github.com/triplegtech/flutter_web_scanner/issues
+homepage: https://github.com/triplegtech/flutter-web-scanner
+repository: https://github.com/triplegtech/flutter-web-scanner
+issue_tracker: https://github.com/triplegtech/flutter-web-scanner/issues
 
 topics:
   - barcode

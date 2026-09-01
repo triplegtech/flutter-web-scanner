@@ -1,0 +1,49 @@
+name: Feature request
+description: Suggest a capability, an option or a change in behaviour
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This package deliberately does one narrow thing, so the most useful
+        thing you can describe is the problem — the solution is often somewhere
+        other than where it first looks.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: >
+        The situation, not the API you have in mind. What are you scanning, on
+        what device, and what goes wrong today?
+      placeholder: >
+        We scan medication boxes in a warehouse, and the operators hold the
+        phone about 5 cm from the label. On some Android devices the main lens
+        cannot focus that close and nothing ever reads.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+      description: An API sketch is welcome, but not required.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you have already tried
+      description: >
+        `ScanDistance.near`, `cameraPreferences`, a custom `ScanValidation`, an
+        externally owned `ScannerController` — knowing which of these you ruled
+        out and why says a lot about whether this needs new API or better docs.
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: This is about scanning in a browser (the package is Flutter Web only — mobile and desktop targets are out of scope by design)
+          required: true
+        - label: I searched the existing issues
+          required: true

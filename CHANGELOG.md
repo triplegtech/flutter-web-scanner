@@ -37,7 +37,7 @@ needs two find-and-replaces; nothing else changed.
   dependencies:
     flutter_web_scanner:
       git:
-        url: https://github.com/triplegtech/flutter_web_scanner.git
+        url: https://github.com/triplegtech/flutter-web-scanner.git
         ref: v1.0.0
   ```
 

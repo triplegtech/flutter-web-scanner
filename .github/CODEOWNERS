@@ -1,0 +1,10 @@
+# Review is requested automatically from the owners of the paths a pull request
+# touches. This only becomes binding once branch protection on `main` requires
+# a review from a code owner.
+#
+# One owner for everything, so per-path rules would only repeat this line. Add
+# them when there is a second maintainer to route work to — the paths worth
+# splitting first are `lib/src/core/` and `assets/js/scanner.js`, where a wrong
+# change is hardest to catch in review.
+
+* @GaGuarGo

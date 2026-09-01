@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # Pinned action versions are the ones that quietly rot: a `@v4` that stops
+  # being maintained shows up as a security advisory long before anything
+  # fails. Grouped into one PR because bumping three actions separately is
+  # three CI runs for the same review.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci"
+
+  # The package itself depends on `web` and `flutter_lints` only, so this is
+  # quiet by design. `pubspec.lock` is not committed for the package (libraries
+  # should not pin), so these are constraint bumps and each one is a real
+  # decision about the supported range.
+  - package-ecosystem: pub
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "deps"

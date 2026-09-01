@@ -1,6 +1,6 @@
 # Flutter Web Scanner
 
-[![CI](https://github.com/triplegtech/flutter_web_scanner/actions/workflows/ci.yml/badge.svg)](https://github.com/triplegtech/flutter_web_scanner/actions/workflows/ci.yml)
+[![CI](https://github.com/triplegtech/flutter-web-scanner/actions/workflows/ci.yml/badge.svg)](https://github.com/triplegtech/flutter-web-scanner/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Flutter Platform](https://img.shields.io/badge/Platform-Web-blue)
 
@@ -46,7 +46,7 @@ tag rather than a branch — every release is tagged `v<version>`:
 dependencies:
   flutter_web_scanner:
     git:
-      url: https://github.com/triplegtech/flutter_web_scanner.git
+      url: https://github.com/triplegtech/flutter-web-scanner.git
       ref: v1.0.0
 ```
 
@@ -264,6 +264,18 @@ in CI deletes it. Keep GitHub's *Settings → General → Automatically delete h
 branches* switched **off**, or the merge will remove it for you.
 
 Publishing to pub.dev is not part of this flow yet.
+
+## Contributing
+
+Bug reports, especially ones with a device and a browser attached, are the most
+useful thing you can send. [CONTRIBUTING.md](CONTRIBUTING.md) covers the setup,
+the layout, and what review will ask about — the short version is that
+`flutter test` never touches the browser layer, so anything under
+`lib/src/platform/` or `assets/` has to be verified by hand.
+
+* [Report a bug or request a feature](https://github.com/triplegtech/flutter-web-scanner/issues/new/choose)
+* [Report a security problem privately](SECURITY.md) — not as an issue
+* [Code of Conduct](CODE_OF_CONDUCT.md)
 
 ## License
 
